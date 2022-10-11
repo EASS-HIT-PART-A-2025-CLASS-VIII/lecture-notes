@@ -29,4 +29,6 @@ vi mkdocs.yml
 mkdocs serve
 mkdocs gh-deploy --force
 ```
+
+Original repo of the first time the class was given:
 https://eass-hit-2022.github.io/Part-A/
