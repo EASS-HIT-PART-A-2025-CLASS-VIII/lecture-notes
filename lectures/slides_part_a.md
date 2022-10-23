@@ -20,7 +20,7 @@ date: "2022"
 ---
 
 
-# EASS 2022
+# EASS 2022-2023
 :::::::::::::: {.columns}
 ::: {.column width="50%"}
 - Admin
@@ -161,7 +161,7 @@ https://stackoverflow.com/help/how-to-ask
 https://classroom.github.com/classrooms/99552739-eass-hit-2022-part-a
 
 
-# AWS course (due a week after Passover == April 30, 2022)
+# AWS course (due December 1, 2022)
 
 - S3, EC2, RDS, and EBS modules
 - must get 100 on all 4 modules
@@ -224,11 +224,11 @@ Code coverage – creating tests to satisfy some criteria of code coverage (e.g.
 
 
 # All exercises
-1. 4 modules on AWS course (S3, EC2, EBS, RDS) - if you finish all the course you get +10 bonus points to final grade
-2. Build full REST/HTTP fastapi backend + Dockerization (due 1/4)
-3. UI (react/streamlit) (due 1/5)
-4. Docker compose the server with UI and backend plus server and write a clear README with git submodules (due 29/5)
-5. Presentation of the system in a demo in a 2-3 minutes video on youtube and clear README (due 29/5)
+1. 4 modules on AWS course (S3, EC2, EBS, RDS) (due 1/12)
+2. Build full REST/HTTP fastapi backend + Dockerization (due 12/12)
+3. UI (react/streamlit) (due 30/12)
+4. Docker compose the server with UI and backend plus server and write a clear README with git submodules (due 15/1)
+5. Presentation of the system in a demo in a 2-3 minutes video on youtube and clear README (due 15/1)
 
 
 # Ideas for porjects next semester (based on skills we will learn this semester)
@@ -263,7 +263,7 @@ https://luminousmen.com/post/what-are-the-best-engineering-principles
 ## Don’t Repeat Yourself (DRY)
 If any code occurs more than twice in the codebase, you should think of moving it in a separate function. In fact, you should consider creating a separate method even if you encounter repetition a second time.
 
-![](https://memegenerator.net/img/instances/54601893.jpg){ width=300px }
+![](https://miro.medium.com/max/1200/1*qIS9MRHvCR5g-CgRU_cAQw.png){ width=300px }
 
 # What Are The Best Software Engineering Principles?
 ## Keep It Simple -Stupid- (KISS)
@@ -511,7 +511,7 @@ https://www.educative.io/blog/what-are-rest-apis
 
 
 # In class hands-on session (training for Ex1)
-**Please complete due next class (March 7th, 2022) and use Discord for help**
+**Please complete due next class and use Discord for help**
 
 1. Create a remote git repo on our organization GitHub https://github.com/EASS-HIT-2022/ (private/public)
 
@@ -573,7 +573,7 @@ uvicorn main:app --reload
 
 https://fastapi.tiangolo.com/tutorial/
 
-# Ex 1 (Due April 10, 2022)
+# Ex 1 (Due Dec 12, 2022)
 
 1. Build only the backend (using FastAPI)
 2. Include a Dockerfile, README and the source code of the app
@@ -1691,7 +1691,7 @@ df.groupby("A").sum()
 https://pandas.pydata.org/docs/user_guide/10min.html
 
 
-# Ex 2 (Due May 30, 2022)
+# Ex 2 (Due Dec 30, 2022)
 
 1. Dockerfile for Frontend
 2. Include in README.md how to run the Backend and Frontend so they can communicate over HTTP (make sure they are connected on the same Docker network)
@@ -1711,7 +1711,7 @@ Suggested layout of the repo:
 |- README.md
 ```
 
-# Ex 3 (Due June 19, 2022)
+# Ex 3 (Due Jan 15, 2023)
 1. Docker compose
 2. At least 3 microservices
 3. Short demo with a movie (Windows Key+G or QuickTime)
