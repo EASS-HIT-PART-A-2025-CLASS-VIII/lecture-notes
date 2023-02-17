@@ -16,11 +16,11 @@ whitespace: small
 title: Engineering of Advanced Software Solutions (EASS)
 author: Yossi Eliaz
 subtitle: HIT, Israel
-date: "2022"
+date: "2023"
 ---
 
 
-# EASS 2022-2023
+# EASS 2023
 :::::::::::::: {.columns}
 ::: {.column width="50%"}
 - Admin
@@ -155,13 +155,7 @@ https://codeblog.jonskeet.uk/2010/08/29/writing-the-perfect-question/
 https://stackoverflow.com/help/how-to-ask
 
 
-# First task
-
-- Checkout github classroom and the first task about git and github
-https://classroom.github.com/classrooms/99552739-eass-hit-2022-part-a
-
-
-# AWS course (due December 1, 2022)
+# AWS course (due April 15, 2023)
 
 - S3, EC2, RDS, and EBS modules
 - must get 100 on all 4 modules
@@ -194,8 +188,8 @@ There are four ways to pay for EC2 instances: On-Demand, Reserved Instances, and
 
 # First task on Git and GitHub
 
-## Checkout github classroom and the first task about git and github
-https://classroom.github.com/classrooms/99552739-eass-hit-2022-part-a
+## Checkout github learning materials (git, markdown, etc.)
+https://skills.github.com/
 
 
 
@@ -224,11 +218,11 @@ Code coverage – creating tests to satisfy some criteria of code coverage (e.g.
 
 
 # All exercises
-1. 4 modules on AWS course (S3, EC2, EBS, RDS) (due 1/12)
-2. Build full REST/HTTP fastapi backend + Dockerization (due 12/12)
-3. UI (react/streamlit) (due 30/12)
-4. Docker compose the server with UI and backend plus server and write a clear README with git submodules (due 15/1)
-5. Presentation of the system in a demo in a 2-3 minutes video on youtube and clear README (due 15/1)
+1. Ex0: 4 modules on AWS course (S3, EC2, EBS, RDS) (due 15/4)
+2. Ex1: Build full REST/HTTP fastapi backend + Dockerization (due 01/05)
+3. Ex2: UI (react/streamlit) (due 15/05)
+4. Ex3: Docker compose the server with UI and backend plus server and write a clear README with git submodules (due 02/06)
+5. Ex3: Presentation of the system in a demo in a 2-3 minutes video on youtube and clear README (due 02/06)
 
 
 # Ideas for porjects next semester (based on skills we will learn this semester)
@@ -513,7 +507,7 @@ https://www.educative.io/blog/what-are-rest-apis
 # In class hands-on session (training for Ex1)
 **Please complete due next class and use Discord for help**
 
-1. Create a remote git repo on our organization GitHub https://github.com/EASS-HIT-2022/ (private/public)
+1. Create a remote git repo on our organization GitHub https://github.com/EASS-HIT-PART-A-2022-CLASS-III (private/public)
 
 2. Name the repo `http-api-demo-<your github name>`
 
@@ -528,7 +522,7 @@ https://www.educative.io/blog/what-are-rest-apis
 FROM ubuntu
 RUN  apt-get update
 RUN  apt-get -y install python
-CMD ["echo", "Hello, EASS 2022"]
+CMD ["echo", "Hello, EASS 2023"]
 ```
 
 6. Now, create a second Dockerfile in your git repo `localhost.Dockerfile` which call to the local hosted httpbin and call it via http://localhost:
@@ -573,7 +567,7 @@ uvicorn main:app --reload
 
 https://fastapi.tiangolo.com/tutorial/
 
-# Ex 1 (Due Dec 12, 2022)
+# Ex 1 (Due May 01, 2023)
 
 1. Build only the backend (using FastAPI)
 2. Include a Dockerfile, README and the source code of the app
@@ -1031,8 +1025,8 @@ redis:6379> ping
 PONG
 redis:6379> ping [hello]
 "[hello]"
-redis:6379> ping [hello-eass-2022]
-"[hello-eass-2022]"
+redis:6379> ping [hello-eass-2023]
+"[hello-eass-2023]"
 redis:6379>
 ```
 
@@ -1096,7 +1090,7 @@ How does something which feels concurrent uses a single thread and a single CPU?
 
 Event loop
 
-![](https://luminousmen.com/media/asynchronous-programming.jpg){ width=200px }
+![](https://user-images.githubusercontent.com/553010/219630284-bd906315-8f9b-4ab9-a51a-d661b8e43eda.png){ width=200px }
 
 
 #### References 
@@ -1691,7 +1685,7 @@ df.groupby("A").sum()
 https://pandas.pydata.org/docs/user_guide/10min.html
 
 
-# Ex 2 (Due Dec 30, 2022)
+# Ex 2 (Due May 15, 2023)
 
 1. Dockerfile for Frontend
 2. Include in README.md how to run the Backend and Frontend so they can communicate over HTTP (make sure they are connected on the same Docker network)
@@ -1711,7 +1705,7 @@ Suggested layout of the repo:
 |- README.md
 ```
 
-# Ex 3 (Due Jan 15, 2023)
+# Ex 3 (Due June 2, 2023)
 1. Docker compose
 2. At least 3 microservices
 3. Short demo with a movie (Windows Key+G or QuickTime)
