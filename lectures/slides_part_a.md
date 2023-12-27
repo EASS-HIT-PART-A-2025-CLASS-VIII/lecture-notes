@@ -16,11 +16,11 @@ whitespace: small
 title: Engineering of Advanced Software Solutions (EASS)
 author: Yossi Eliaz
 subtitle: HIT, Israel
-date: "2023"
+date: "2024"
 ---
 
 
-# EASS 2023
+# EASS 2024
 :::::::::::::: {.columns}
 ::: {.column width="50%"}
 - Admin
@@ -155,7 +155,7 @@ https://codeblog.jonskeet.uk/2010/08/29/writing-the-perfect-question/
 https://stackoverflow.com/help/how-to-ask
 
 
-# AWS course (due April 15, 2023)
+# AWS course (due March 5, 2024)
 
 - S3, EC2, RDS, and EBS modules
 - must get 100 on all 4 modules
@@ -522,7 +522,7 @@ https://www.educative.io/blog/what-are-rest-apis
 FROM ubuntu
 RUN  apt-get update
 RUN  apt-get -y install python
-CMD ["echo", "Hello, EASS 2023"]
+CMD ["echo", "Hello, EASS 2024"]
 ```
 
 6. Now, create a second Dockerfile in your git repo `localhost.Dockerfile` which call to the local hosted httpbin and call it via http://localhost:
@@ -567,7 +567,7 @@ uvicorn main:app --reload
 
 https://fastapi.tiangolo.com/tutorial/
 
-# Ex 1 (Due May 01, 2023)
+# Ex 1 (Due Feb 20, 2024)
 
 1. Build only the backend (using FastAPI)
 2. Include a Dockerfile, README and the source code of the app
@@ -1025,8 +1025,8 @@ redis:6379> ping
 PONG
 redis:6379> ping [hello]
 "[hello]"
-redis:6379> ping [hello-eass-2023]
-"[hello-eass-2023]"
+redis:6379> ping [hello-eass-2024]
+"[hello-eass-2024]"
 redis:6379>
 ```
 
@@ -1685,7 +1685,7 @@ df.groupby("A").sum()
 https://pandas.pydata.org/docs/user_guide/10min.html
 
 
-# Ex 2 (Due May 15, 2023)
+# Ex 2 (Due March 12, 2024)
 
 1. Dockerfile for Frontend
 2. Include in README.md how to run the Backend and Frontend so they can communicate over HTTP (make sure they are connected on the same Docker network)
@@ -1705,7 +1705,7 @@ Suggested layout of the repo:
 |- README.md
 ```
 
-# Ex 3 (Due June 2, 2023)
+# Ex 3 (Due April 1, 2024)
 1. Docker compose
 2. At least 3 microservices
 3. Short demo with a movie (Windows Key+G or QuickTime)
