@@ -218,11 +218,11 @@ Code coverage – creating tests to satisfy some criteria of code coverage (e.g.
 
 
 # All exercises
-1. Ex0: 4 modules on AWS course (S3, EC2, EBS, RDS) (due 15/4)
-2. Ex1: Build full REST/HTTP fastapi backend + Dockerization (due 01/05)
-3. Ex2: UI (react/streamlit) (due 15/05)
-4. Ex3: Docker compose the server with UI and backend plus server and write a clear README with git submodules (due 02/06)
-5. Ex3: Presentation of the system in a demo in a 2-3 minutes video on youtube and clear README (due 02/06)
+1. Ex0: 4 modules on AWS course (S3, EC2, EBS, RDS) (due March 5, 2024)
+2. Ex1: Build full REST/HTTP fastapi backend + Dockerization (due Feb 20, 2024)
+3. Ex2: UI (react/streamlit) (due March 12, 2024)
+4. Ex3: Docker compose the server with UI and backend plus server and write a clear README with git submodules (due April 1, 2024)
+5. Ex3: Presentation of the system in a demo in a 2-3 minutes video on youtube and clear README (due April 1, 2024)
 
 
 # Ideas for porjects next semester (based on skills we will learn this semester)
