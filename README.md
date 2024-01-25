@@ -1,13 +1,16 @@
 # 🌟 EASS-HIT Part-A: Agenda, Lecture Notes, and Materials - Semester Topics
 
-Welcome to the **EASS-HIT-2022 Part-A** course repository! Dive into an array of topics blending technology, innovation, and practical skills.
+Welcome to EASS-HIT-Part-A (Engineering of Advanced Software Solutions)! Explore a curriculum that blends technology and innovation with hands-on skills.
 
 ## 📚 Natalie's Lectures
 
-Explore the world of technology with Natalie's insightful lectures. Each session is crafted to deepen your understanding and enhance your skills.
+Join Natalie for an insightful exploration into technology. Her lectures provide depth and practical knowledge to enhance your skills.
 
-- 📖 **Lecture Notes**: Find in-depth material in our [lecture notes](https://github.com/EASS-HIT-2022/lecture-notes/tree/main).
-- 🎞️ **Full Lecture Slides**: Access all slides [here](/lectures/all_slides.pdf).
+- 📖 **Lecture Notes**: Find comprehensive material in our [lecture notes](https://github.com/EASS-HIT-2022/lecture-notes/tree/main).
+
+## 📑 Official Lecture Notes by Yossi
+
+- 🎞️ **Full Lecture Slides**: Access Yossi's detailed slides [here](/lectures/all_slides.pdf) for an enriched learning experience.
 
 🚀 Embark on an exciting learning journey!
 
