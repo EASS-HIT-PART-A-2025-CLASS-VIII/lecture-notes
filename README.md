@@ -34,24 +34,22 @@ This semester covers a wide range of intriguing topics:
 - [x] **Profiling**: Software performance optimization.
 - [ ] **Compiling**: Compilers and the compilation process.
 
-## 🔧 Course Tools and Resources
+## 🔧 Building the Course Website
 
-- 🌐 **Course Website**: In progress, for additional resources.
-- 🛠️ **Documentation with `mkdocs`**:
-    ```bash
-    mkdocs new .
-    vi mkdocs.yml
-    # theme:
-    #  name: material
-    mkdocs serve
-    mkdocs gh-deploy --force
-    ```
-- 📝 **Interactive Quizzes**: Coming soon for an enhanced learning experience.
-- 💬 **Student Forum**: Share feedback and discuss course content.
+- 🌐 **In-Progress Website**: Additional resources and updates.
+- 🛠️ **Using `mkdocs` for Documentation**:
+  ```bash
+  mkdocs new .
+  vi mkdocs.yml
+  # Set theme to 'material'
+  mkdocs serve
+  mkdocs gh-deploy --force
+  ```
 
-## 📢 Additional Links
+## 📢 Explore More
 
-- 🏫 Website based on the original course repository: [EASS HIT 2022](https://eass-hit-2022.github.io/Part-A/)
-- ✨ Stay tuned for more resources and exercises.
+- 🏫 Visit the [EASS HIT 2022](https://eass-hit-2022.github.io/Part-A/) website for original course content.
+- ✨ Check back for new resources and interactive exercises.
 
-Let's embark on this amazing learning journey together! 🌈
+🚀 Join us on this exciting learning adventure!
+
