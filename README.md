@@ -50,6 +50,7 @@ This semester covers a wide range of intriguing topics:
 
 - 🏫 Visit the [EASS HIT 2022](https://eass-hit-2022.github.io/Part-A/) website for original course content.
 - ✨ Check back for new resources and interactive exercises.
-
-🚀 Join us on this exciting learning adventure!
+- 🌟 Explore additional projects on [Build Your Own *](https://github.com/codecrafters-io/build-your-own-x).
+  
+🚀
 
