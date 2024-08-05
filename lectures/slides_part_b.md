@@ -1253,10 +1253,13 @@ https://cs251.stanford.edu/syllabus.html
 
 
 # IPFS
+```bash
 npm install -g ipfs
 npm install -g ipfs-core
 npm root -g
 then dir should look like:
+```
+
 
 ```bash
  ipfs_demo tree
