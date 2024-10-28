@@ -155,11 +155,15 @@ https://codeblog.jonskeet.uk/2010/08/29/writing-the-perfect-question/
 https://stackoverflow.com/help/how-to-ask
 
 
-# AWS course (due March 5, 2024)
+# AWS course (due Feb 5, 2025)
 
-- S3, EC2, RDS, and EBS modules
-- must get 100 on all 4 modules
-- grading will be 25% per module
+- Module 1 - Cloud Concepts Overview
+- Module 6 - Compute
+- Module 7 - Storage
+- Module 8 - Databases
+- Make sure you know well: S3, EC2, RDS, EFS and EBS
+- Must pass all four modules
+- Each module contributes 25% to the final grade
 
 # A bit more about EC2 instances and types of hardwares (HW)
 
@@ -218,11 +222,11 @@ Code coverage – creating tests to satisfy some criteria of code coverage (e.g.
 
 
 # All exercises
-1. Ex0: 4 modules on AWS course (S3, EC2, EBS, RDS) (due June 15, 2024)
-2. Ex1: Build full REST/HTTP fastapi backend + Dockerization (due June 4, 2024)
-3. Ex2: UI (react/streamlit) (due June 26, 2024)
-4. Ex3: Docker compose the server with UI and backend plus server and write a clear README with git submodules (due July 17, 2024)
-5. Ex3: Presentation of the system in a demo in a 2-3 minutes video on youtube and clear README (due July 17, 2024)
+1. Ex0: 4 modules on AWS course (S3, EC2, EBS, EFS, RDS, compute, storage, databases) (due Feb 5, 2025)
+2. Ex1: Build full REST/HTTP fastapi backend + Dockerization (due Dec 20, 2024)
+3. Ex2: UI (react/streamlit) (due Jan 10, 2025)
+4. Ex3: Docker compose the server with UI and backend plus server and write a clear README with git submodules (due Feb 10, 2025)
+5. Ex3: Presentation of the system in a demo in a 2-3 minutes video on youtube and clear README (due  Feb 10, 2025)
 
 
 # Ideas for porjects next semester (based on skills we will learn this semester)
@@ -507,7 +511,7 @@ https://www.educative.io/blog/what-are-rest-apis
 # In class hands-on session (training for Ex1)
 **Please complete due next class and use Discord for help**
 
-1. Create a remote git repo on our organization GitHub https://github.com/EASS-HIT-PART-A-2024-CLASS-V (private/public)
+1. Create a remote git repo on our organization GitHub https://github.com/EASS-HIT-PART-A-2024-CLASS-VI (private/public)
 
 2. Name the repo `http-api-demo-<your github name>`
 
@@ -567,7 +571,7 @@ uvicorn main:app --reload
 
 https://fastapi.tiangolo.com/tutorial/
 
-# Ex 1 (Due June 4, 2024)
+# Ex 1 (Due Dec 20, 2024)
 
 1. Build only the backend (using FastAPI)
 2. Include a Dockerfile, README and the source code of the app
@@ -1685,7 +1689,7 @@ df.groupby("A").sum()
 https://pandas.pydata.org/docs/user_guide/10min.html
 
 
-# Ex 2 (Due June 25, 2024)
+# Ex 2 (Due Jan 10, 2025)
 
 1. Dockerfile for Frontend
 2. Include in README.md how to run the Backend and Frontend so they can communicate over HTTP (make sure they are connected on the same Docker network)
@@ -1705,7 +1709,7 @@ Suggested layout of the repo:
 |- README.md
 ```
 
-# Ex 3 (Due July 17, 2024)
+# Ex 3 (Due Feb 10, 2025)
 1. Docker compose
 2. At least 3 microservices
 3. Short demo with a movie (Windows Key+G or QuickTime)
