@@ -1,56 +1,35 @@
-# 🌟 EASS-HIT Part-A: Agenda, Lecture Notes, and Materials - Semester Topics
+# 🌟 EASS-HIT Part-A: Agenda & Resources
 
-Welcome to EASS-HIT-Part-A (Engineering of Advanced Software Solutions)! Explore a curriculum that blends technology and innovation with hands-on skills.
+Welcome to **EASS-HIT-Part-A**, where academia meets technology & action. Learn, create, and push your software skills to new boundaries.
 
-## 📚 Natalie's Lectures
+## Notes
+- 📖 **Natalie’s Notes**: [Explore](https://github.com/EASS-HIT-2022/lecture-notes/tree/main).  
+- 🎞️ **Yossi's Slides**: [View here](/lectures/all_slides.pdf).
 
-Join Natalie for an insightful exploration into technology. Her lectures provide depth and practical knowledge to enhance your skills.
+## 📅 Semester Topics
 
-- 📖 **Lecture Notes**: Find comprehensive material in our [lecture notes](https://github.com/EASS-HIT-2022/lecture-notes/tree/main).
+This semester is all about mastering the essentials:  
+- **Tech Debt**: Fix it before it breaks.  
+- **Business Logic**: Smarter systems, better outcomes.  
+- **Bash**: Command the command line ([MIT Guide](https://missing.csail.mit.edu/2020/course-shell/)).  
+- **AWS**: Cloud, simplified.  
+- **Git/GitHub**: Collab like a pro.  
+- **HTTP APIs, Docker, Microservices, Backend, Frontend, System Design, General Software Engineering**: Core SW engineering skills.
+- **CI/CD, Profiling, Testing**: Build faster, better.  
 
-## 📑 Official Lecture Notes by Yossi
+## 🔧 Build the Website
 
-- 🎞️ **Full Lecture Slides**: Access Yossi's detailed slides [here](/lectures/all_slides.pdf) for an enriched learning experience.
+Run this and you’re golden:
+```bash
+mkdocs new .
+vi mkdocs.yml  # Use 'material' theme
+mkdocs serve
+mkdocs gh-deploy --force
+```
 
-🚀 Embark on an exciting learning journey!
-
-## 📅 Semester Topics Overview
-
-This semester covers a wide range of intriguing topics:
-
-- [x] **Technical Debt**: Understanding technical debt in software projects.
-- [x] **Business Logic**: Implementing effective business logic.
-- [x] **Types of Hardware**: Various hardware types in computing.
-- [x] **Bash and Commandline**: Essentials of shell scripting ([missing semester](https://missing.csail.mit.edu/2020/course-shell/)).
-- [x] **AWS and Cloud Fundamentals**: Introduction to AWS services and cloud computing.
-- [x] **Git, GitHub**: Version control and collaborative projects.
-- [x] **HTTP and REST API**: HTTP protocols and RESTful API design.
-- [x] **Microservices**: Microservices architecture.
-- [x] **Docker**: Containerization with Docker.
-- [x] **Frontend and Backend**: Key web development concepts.
-- [x] **Testing**: Software testing strategies.
-- [ ] **LinkedIn, Slack**: Professional networking and communication.
-- [ ] **CI/CD**: Continuous Integration and Deployment.
-- [x] **Profiling**: Software performance optimization.
-- [ ] **Compiling**: Compilers and the compilation process.
-
-## 🔧 Building the Course Website
-
-- 🌐 **In-Progress Website**: Additional resources and updates.
-- 🛠️ **Using `mkdocs` for Documentation**:
-  ```bash
-  mkdocs new .
-  vi mkdocs.yml
-  # Set theme to 'material'
-  mkdocs serve
-  mkdocs gh-deploy --force
-  ```
-
-## 📢 Explore More
-
-- 🏫 Visit the [EASS HIT 2022](https://eass-hit-2022.github.io/Part-A/) website for original course content.
-- ✨ Check back for new resources and interactive exercises.
-- 🌟 Explore additional projects on [Build Your Own *](https://github.com/codecrafters-io/build-your-own-x).
-- 🎧 EASS podcast episode: listen to the latest insights on [Spotify](https://open.spotify.com/show/31yT71Ci46dq5OliUYfcYG).
-🚀
-
+📢 More Resources
+- 🌐 **[EASS HIT 2022](https://eass-hit-2022.github.io/Part-A/)**: Course hub.  
+- 🌟 **[Build Your Own *](https://github.com/codecrafters-io/build-your-own-x)**: Fun projects.  
+- 🎧 **[EASS Podcast](https://open.spotify.com/show/31yT71Ci46dq5OliUYfcYG)**: Quick insights.  
+- 📺 **[TechPrepYT](https://www.youtube.com/@TechPrepYT/videos)**: Videos that teach.  
+- 📘 **[System Design Primer](https://github.com/donnemartin/system-design-primer)**: Master system design concepts.  
