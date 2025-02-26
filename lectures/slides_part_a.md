@@ -156,7 +156,11 @@ https://stackoverflow.com/help/how-to-ask
 
 
 # AWS Course Requirements (Due: May 30, 2025)
-This is Ex 0. There are Labs, Modules and Activities on AWS Academy Cloud Foundations course. The course is designed to help you understand the basics of cloud computing and AWS. The course is self-paced and you can complete it at your own pace.
+Completing the following modules:
+
+1. Module 6 - Compute
+2. Module 7 - Storage
+3. Module 8 - Databases
 
 ## **Key AWS Services to Master**
 - **S3** – Object storage service
@@ -165,15 +169,6 @@ This is Ex 0. There are Labs, Modules and Activities on AWS Academy Cloud Founda
 - **EFS** – Scalable file storage
 - **EBS** – Block storage for EC2
 
-Lab 3: EC2 Introduction
-Lab 4: Working with EBS
-Lab 5: Database Server
-
-Activity: AWS Lambda
-
-Module 1: Cloud Concepts
-Module 2: EC2 & Compute
-Module 5: Storage & Databases
 
 
 
@@ -233,10 +228,11 @@ Code coverage – creating tests to satisfy some criteria of code coverage (e.g.
 
 
 # All exercises
-1. Ex0: 3 Modules + 3 Labs + 1 Activity on AWS course (S3, EC2, EBS, EFS, RDS, compute, storage, databases, lambda) (due May 30, 2025):
- - Modules: 1 (Cloud Concepts), 2 (EC2), 5 (Storage & Databases)
- - Labs: 3 (EC2), 4 (EBS), 5 (Database)
- - Activity: AWS Lambda
+1. Ex0: 3 Modules on AWS course (to learn: S3, EC2, EBS, EFS, RDS) (due May 30, 2025):
+  - Module 1 - Cloud Concepts Overview (optional)
+  - Module 6 - Compute (must)
+  - Module 7 - Storage (must)
+  - Module 8 - Databases (must)
 2. Ex1: Build full REST/HTTP fastapi backend + Dockerization (due May 15, 2025)
 3. Ex2: UI (react/streamlit) (due June 4, 2025)
 4. Ex3: Docker compose the server with UI and backend plus server and write a clear README with git submodules (due June 28, 2025)
