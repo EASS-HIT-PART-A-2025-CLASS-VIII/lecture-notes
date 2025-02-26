@@ -16,11 +16,11 @@ whitespace: small
 title: Engineering of Advanced Software Solutions (EASS)
 author: Yossi Eliaz
 subtitle: HIT, Israel
-date: "2024"
+date: "2025"
 ---
 
 
-# EASS 2024
+# EASS 2025
 :::::::::::::: {.columns}
 ::: {.column width="50%"}
 - Admin
@@ -155,15 +155,27 @@ https://codeblog.jonskeet.uk/2010/08/29/writing-the-perfect-question/
 https://stackoverflow.com/help/how-to-ask
 
 
-# AWS course (due Feb 5, 2025)
+# AWS Course Requirements (Due: May 30, 2025)
+This is Ex 0. There are Labs, Modules and Activities on AWS Academy Cloud Foundations course. The course is designed to help you understand the basics of cloud computing and AWS. The course is self-paced and you can complete it at your own pace.
 
-- Module 1 - Cloud Concepts Overview
-- Module 6 - Compute
-- Module 7 - Storage
-- Module 8 - Databases
-- Make sure you know well: S3, EC2, RDS, EFS and EBS
-- Must pass all four modules
-- Each module contributes 25% to the final grade
+## **Key AWS Services to Master**
+- **S3** – Object storage service  
+- **EC2** – Virtual server instances  
+- **RDS** – Managed relational database service  
+- **EFS** – Scalable file storage  
+- **EBS** – Block storage for EC2  
+
+Lab 3: EC2 Introduction
+Lab 4: Working with EBS
+Lab 5: Database Server
+
+Activity: AWS Lambda
+
+Module 1: Cloud Concepts
+Module 2: EC2 & Compute
+Module 5: Storage & Databases
+
+
 
 # A bit more about EC2 instances and types of hardwares (HW)
 
@@ -196,7 +208,6 @@ There are four ways to pay for EC2 instances: On-Demand, Reserved Instances, and
 https://skills.github.com/
 
 
-
 # How to test our code/system
 
 ## General approaches for testing
@@ -222,11 +233,14 @@ Code coverage – creating tests to satisfy some criteria of code coverage (e.g.
 
 
 # All exercises
-1. Ex0: 4 modules on AWS course (S3, EC2, EBS, EFS, RDS, compute, storage, databases) (due Feb 5, 2025)
-2. Ex1: Build full REST/HTTP fastapi backend + Dockerization (due Dec 20, 2024)
-3. Ex2: UI (react/streamlit) (due Jan 10, 2025)
-4. Ex3: Docker compose the server with UI and backend plus server and write a clear README with git submodules (due Feb 10, 2025)
-5. Ex3: Presentation of the system in a demo in a 2-3 minutes video on youtube and clear README (due  Feb 10, 2025)
+1. Ex0: 3 Modules + 3 Labs + 1 Activity on AWS course (S3, EC2, EBS, EFS, RDS, compute, storage, databases, lambda) (due May 30, 2025):
+ - Modules: 1 (Cloud Concepts), 2 (EC2), 5 (Storage & Databases)
+ - Labs: 3 (EC2), 4 (EBS), 5 (Database)
+ - Activity: AWS Lambda
+2. Ex1: Build full REST/HTTP fastapi backend + Dockerization (due May 15, 2025)
+3. Ex2: UI (react/streamlit) (due June 4, 2025)
+4. Ex3: Docker compose the server with UI and backend plus server and write a clear README with git submodules (due June 28, 2025)
+5. Ex3: Presentation of the system in a demo in a 2-3 minutes video on youtube and clear README (due June 28, 2025)
 
 
 # Ideas for porjects next semester (based on skills we will learn this semester)
@@ -511,7 +525,7 @@ https://www.educative.io/blog/what-are-rest-apis
 # In class hands-on session (training for Ex1)
 **Please complete due next class and use Discord for help**
 
-1. Create a remote git repo on our organization GitHub https://github.com/EASS-HIT-PART-A-2024-CLASS-VI (private/public)
+1. Create a remote git repo on our organization GitHub https://github.com/EASS-HIT-PART-A-2025-CLASS-VII (private/public)
 
 2. Name the repo `http-api-demo-<your github name>`
 
@@ -526,7 +540,7 @@ https://www.educative.io/blog/what-are-rest-apis
 FROM ubuntu
 RUN  apt-get update
 RUN  apt-get -y install python
-CMD ["echo", "Hello, EASS 2024"]
+CMD ["echo", "Hello, EASS 2025"]
 ```
 
 6. Now, create a second Dockerfile in your git repo `localhost.Dockerfile` which call to the local hosted httpbin and call it via http://localhost:
@@ -571,7 +585,7 @@ uvicorn main:app --reload
 
 https://fastapi.tiangolo.com/tutorial/
 
-# Ex 1 (Due Dec 20, 2024)
+# Ex 1 (Due May 15, 2025)
 
 1. Build only the backend (using FastAPI)
 2. Include a Dockerfile, README and the source code of the app
@@ -1029,8 +1043,8 @@ redis:6379> ping
 PONG
 redis:6379> ping [hello]
 "[hello]"
-redis:6379> ping [hello-eass-2024]
-"[hello-eass-2024]"
+redis:6379> ping [hello-eass-2025]
+"[hello-eass-2025]"
 redis:6379>
 ```
 
@@ -1689,7 +1703,7 @@ df.groupby("A").sum()
 https://pandas.pydata.org/docs/user_guide/10min.html
 
 
-# Ex 2 (Due Jan 10, 2025)
+# Ex 2 (Due June 4, 2025)
 
 1. Dockerfile for Frontend
 2. Include in README.md how to run the Backend and Frontend so they can communicate over HTTP (make sure they are connected on the same Docker network)
@@ -1709,7 +1723,7 @@ Suggested layout of the repo:
 |- README.md
 ```
 
-# Ex 3 (Due Feb 10, 2025)
+# Ex 3 (Due June 28, 2025)
 1. Docker compose
 2. At least 3 microservices
 3. Short demo with a movie (Windows Key+G or QuickTime)
