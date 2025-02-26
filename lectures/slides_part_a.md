@@ -159,11 +159,11 @@ https://stackoverflow.com/help/how-to-ask
 This is Ex 0. There are Labs, Modules and Activities on AWS Academy Cloud Foundations course. The course is designed to help you understand the basics of cloud computing and AWS. The course is self-paced and you can complete it at your own pace.
 
 ## **Key AWS Services to Master**
-- **S3** – Object storage service  
-- **EC2** – Virtual server instances  
-- **RDS** – Managed relational database service  
-- **EFS** – Scalable file storage  
-- **EBS** – Block storage for EC2  
+- **S3** – Object storage service
+- **EC2** – Virtual server instances
+- **RDS** – Managed relational database service
+- **EFS** – Scalable file storage
+- **EBS** – Block storage for EC2
 
 Lab 3: EC2 Introduction
 Lab 4: Working with EBS
