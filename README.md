@@ -27,9 +27,10 @@ mkdocs serve
 mkdocs gh-deploy --force
 ```
 
-📢 More Resources
-- 🌐 **[EASS HIT 2022](https://eass-hit-2022.github.io/Part-A/)**: Course hub.  
-- 🌟 **[Build Your Own *](https://github.com/codecrafters-io/build-your-own-x)**: Fun projects.  
-- 🎧 **[EASS Podcast](https://open.spotify.com/show/31yT71Ci46dq5OliUYfcYG)**: Quick insights.  
-- 📺 **[TechPrepYT](https://www.youtube.com/@TechPrepYT/videos)**: Videos that teach.  
-- 📘 **[System Design Primer](https://github.com/donnemartin/system-design-primer)**: Master system design concepts.  
+📢 **More Resources**
+- 🌐 **[EASS HIT 2022](https://eass-hit-2022.github.io/Part-A/)**: Course hub.
+- 🌟 **[Build Your Own *](https://github.com/codecrafters-io/build-your-own-x)**: Fun, hands-on projects.
+- 🎧 **[EASS Podcast](https://open.spotify.com/show/31yT71Ci46dq5OliUYfcYG)**: Bite-sized insights.
+- 📺 **[TechPrepYT](https://www.youtube.com/@TechPrepYT/videos)**: Concise educational videos.
+- 📘 **[System Design Primer](https://github.com/donnemartin/system-design-primer)**: Essential system design knowledge.
+- 🎓 **[OSSU Computer Science](https://github.com/ossu/computer-science)**: Free, open-source, comprehensive CS curriculum.
