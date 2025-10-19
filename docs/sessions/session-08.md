@@ -29,33 +29,65 @@
 4. Warn against copying random snippets from the internet without validating them.
 
 ## Part B – Hands-on Lab 1 (45 Minutes)
-### Prompt to Add PUT and DELETE Routes
-Use Cursor, GitHub Copilot Chat, or ChatGPT. Suggested prompt:
+### Prompt 1 – Update Movie Metadata via AI
+Use Cursor, Copilot Chat, or ChatGPT. Suggested prompt:
 ```
-You are assisting with a FastAPI service that already has POST /items and GET /items/{id}.
-Add PUT /items/{id} to replace an item, DELETE /items/{id} to remove it, and update the pytest suite accordingly.
-Keep responses small and explain each change.
+You are assisting with a FastAPI movie recommendation service that already exposes
+GET /movies and POST /movies.
+Add PUT /movies/{id} to update title/year/genre, DELETE /movies/{id} to remove a movie,
+and update the pytest suite to cover these behaviours. Keep responses small and explain each change.
 ```
 
-### Review AI Output
+### Review AI Output for Prompt 1
 - Check for validation logic, HTTP status codes, and consistent models.
 - Reject anything that removes existing tests without replacing them.
 
-### Verify with Tests
+### Verify with Tests (Prompt 1)
 ```bash
 uv run pytest -q
 ```
 If tests fail, debug manually. Emphasize that AI suggestions are starting points, not truth.
 
-### Commit Message
+### Commit Message (Prompt 1)
 Encourage students to use AI to draft a commit message, but edit it for clarity before committing.
+
+### Prompt 2 – Scaffold a Recommendation Stub
+After merging the CRUD improvements, have AI draft a simple collaborative filtering helper. Suggested prompt:
+```
+We store movie ratings with fields (movie_id, user_id, score).
+Write a Python module `app/recommender.py` that exposes `build_user_matrix(ratings)` and
+`recommend_for_user(ratings, user_id, k=5)` using a lightweight ALS-style approach (NumPy only).
+Return movie_id recommendations sorted by predicted score. Include docstrings and type hints.
+```
+
+### Integrate the Stub Manually
+1. Create `app/recommender.py` from the AI response.
+2. In `app/main.py`, add a placeholder route:
+   ```python
+   from app import recommender
+
+   @app.get("/recommendations/{user_id}")
+   def recommend(user_id: int, limit: int = 5) -> list[int]:
+       ratings = repository.list_ratings()
+       return recommender.recommend_for_user(ratings, user_id, k=limit)
+   ```
+   (This will return empty lists until Session 09 builds the background job.)
+3. Ask AI to generate pytest cases that feed a small rating sample into `recommend_for_user` and assert on the ordering.
+
+### Verify with Tests (Prompt 2)
+```bash
+uv add numpy
+uv run pytest -q
+```
+Address any numerical edge cases before moving on.
+
 
 ## Part C – Hands-on Lab 2 (45 Minutes) – Local LLM Call
 ### Start LM Studio
 - Launch LM Studio and load a model that supports chat completions.
 - Note the local API URL (commonly `http://localhost:1234/v1`).
 
-### Create `scripts/query_llm.py`
+### Create `scripts/query_llm.py` (reuse from Session 08)
 Install dependency if needed:
 ```bash
 uv add httpx
@@ -106,14 +138,14 @@ Copy the output into a scratch file, review it, and discuss what needs to change
 - Remind students to disable auto-commit features if their IDEs offer them; commits must remain intentional.
 
 ## Student Success Criteria
-- PUT and DELETE routes exist, are tested, and pass pytest locally.
-- Students can articulate how they validated AI-generated code.
+- PUT and DELETE routes for `/movies/{id}` exist, are tested, and pass pytest locally.
+- Students can articulate how they validated AI-generated code and the new recommendation stub.
 - `scripts/query_llm.py` successfully receives a response from a local LLM and prints it.
 
 ## AI Prompt Kit (Copy/Paste)
-- “Given an existing FastAPI app with POST/GET for `/items`, add PUT and DELETE endpoints, update Pydantic models for validation, and write pytest tests that pass locally.”
-- “Summarize a Python module into a README section with install instructions, run commands, and a short overview. Keep it under 10 lines.”
-- “Draft a conventional commit message for adding PUT/DELETE routes and tests to a FastAPI service.”
+- “Given the FastAPI movie service, add PUT `/movies/{id}` and DELETE `/movies/{id}`, update the models, and write pytest coverage for the new behaviour.”
+- “Summarize the new `app/recommender.py` module into a README section with install commands, how to trigger `/recommendations/{user_id}`, and test instructions.”
+- “Draft a conventional commit message for adding movie update/delete endpoints plus a recommender stub.”
 
 ## Quick Reference (External Search / ChatGPT)
 - **Google:** `FastAPI use ChatGPT to write tests safely`

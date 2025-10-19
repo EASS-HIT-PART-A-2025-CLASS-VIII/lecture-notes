@@ -42,8 +42,7 @@ mkdir -p app
 Create `app/db.py`:
 ```python
 from contextlib import contextmanager
-from pathlib import Path
-from typing import Iterable
+from typing import Callable
 
 from sqlmodel import SQLModel, create_engine, Session
 
@@ -55,7 +54,7 @@ engine = create_engine(
 )
 
 
-def init_db(seed_fn: Iterable[dict] | None = None) -> None:
+def init_db(seed_fn: Callable[[Session], None] | None = None) -> None:
     """Create tables and optionally seed starter movies."""
     SQLModel.metadata.create_all(engine)
     if seed_fn:
@@ -197,6 +196,12 @@ def top_movies(limit: int = 5) -> list[MovieRead]:
             )
         enriched.sort(key=lambda m: (m.average_rating or 0), reverse=True)
         return enriched[:limit]
+
+
+def list_ratings() -> list[dict]:
+    with get_session() as session:
+        ratings = session.exec(select(RatingRow)).all()
+        return [rating.model_dump() for rating in ratings]
 ```
 
 ### Update FastAPI (`app/main.py`)
@@ -266,9 +271,7 @@ def get_top_movies(limit: int = 5) -> list[MovieRead]:
 - Stop the server, restart, and check the data still exists.
 
 ## Part C – Hands-on Lab 2 (45 Minutes)
-## Part C – Hands-on Lab 2 (45 Minutes)
 ### Test Fixtures (`tests/conftest.py`)
-Add:
 ```python
 import tempfile
 from collections.abc import Iterator
@@ -276,7 +279,7 @@ from collections.abc import Iterator
 import pytest
 from sqlmodel import SQLModel, create_engine, Session
 
-from app import db
+from app import db, repository
 
 
 @pytest.fixture(autouse=True)
@@ -286,24 +289,38 @@ def temporary_db(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
             f"sqlite:///{tmp.name}",
             connect_args={"check_same_thread": False},
         )
-        db.engine = engine
+        monkeypatch.setattr(db, "engine", engine)
         SQLModel.metadata.create_all(engine)
+        with Session(engine) as session:
+            repository.seed_movies(session)
         yield
 ```
 
-### Expand Tests (`tests/test_items.py`)
-Add assertions for list, update, delete, and error paths. Example snippet:
+### Expand Tests (`tests/test_movies.py`)
+Add assertions for list, recommendations, and error paths. Example snippet:
 ```python
-def test_update_item():
-    create_response = client.post("/items", json={"name": "Pencil", "quantity": 1})
-    item_id = create_response.json()["id"]
+from fastapi.testclient import TestClient
 
-    update_response = client.put(
-        f"/items/{item_id}",
-        json={"name": "Pencil", "quantity": 5},
-    )
-    assert update_response.status_code == 200
-    assert update_response.json()["quantity"] == 5
+from app.main import app
+
+client = TestClient(app)
+
+
+def test_get_movies_returns_seeded_catalogue():
+    response = client.get("/movies")
+    assert response.status_code == 200
+    body = response.json()
+    assert any(movie["title"] == "Inception" for movie in body)
+
+
+def test_delete_movie_removes_entry():
+    created = client.post(
+        "/movies",
+        json={"title": "Temp", "year": 2021, "genre": "Drama"},
+    ).json()
+    delete_response = client.delete(f"/movies/{created['id']}")
+    assert delete_response.status_code == 204
+    assert client.get(f"/movies/{created['id']}").status_code == 404
 ```
 
 ### Run the Suite
@@ -312,9 +329,8 @@ uv run pytest -q
 ```
 
 ### Reflection Prompt
-- Ask: “What code had to change when we introduced the database?”
-- Highlight: Routes stayed simple because the repository hides the database details.
-
+- Ask: “How did database fixtures keep tests isolated?”
+- Highlight: The movie repository hides persistence details, so new features slot in without touching route code.
 ## Exercise 2 Announcement
 - **Goal:** Build a user interface (Streamlit or small React app) that talks to this API.
 - **Assigned:** Today.
@@ -325,20 +341,20 @@ uv run pytest -q
 
 ## Troubleshooting
 - If you see `sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread`, confirm `check_same_thread` is set to `False`.
-- Delete `items.db` when schema changes cause issues (this is safe in development).
+- Delete `movies.db` when schema changes cause issues (this is safe in development).
 - On Windows, make sure the project path does not contain spaces to prevent SQLite file locking problems.
 
 ## Student Success Criteria
-- Items persist across server restarts.
-- Tests cover create, read, update, delete, and failure paths.
+- Movies and ratings persist across server restarts.
+- Tests cover create/read/update/delete plus rating and top-movie logic without leaking state.
 - Students can explain why separating models/repository makes the code easier to maintain.
 - Students have recorded the **Dec 9 (soft)** and **Dec 16 (hard)** dates for the Storage module and know how to submit proof of completion.
 
 ## Quick Reference (External Search / ChatGPT)
-- **Google:** `SQLModel FastAPI example sqlite`
-- **ChatGPT prompt:** “Outline three talking points to explain why we moved from in-memory storage to SQLModel + SQLite in FastAPI.”
+- **Google:** `SQLModel FastAPI movie rating example`
+- **ChatGPT prompt:** “Outline three talking points to explain why the movie service moved from in-memory storage to SQLModel + SQLite.”
 
 ## AI Prompt Kit (Copy/Paste)
-- “Refactor an in-memory FastAPI items service to use SQLModel + SQLite. Create `ItemRow`, `ItemCreate`, `ItemRead`, `ItemUpdate`, a repository with create/get/list/update/delete, and wire routes. Include a startup hook to create tables.”
-- “Write pytest fixtures that replace the production SQLite engine with a temporary file DB and auto-create tables. Provide example tests for PUT, PATCH, DELETE.”
-- “Explain when to use `model_validate` vs. `model_dump` with SQLModel and Pydantic v2 in one concise paragraph and give one example.”
+- “Refactor the in-memory FastAPI movie service to use SQLModel + SQLite. Create `MovieRow`, `RatingRow`, repository helpers, and seed starter movies on startup.”
+- “Write pytest fixtures that replace the SQLite engine with a temp file, seed movies, and test `/movies`, `/ratings`, and `/movies/top`.”
+- “Explain when to use `model_validate` vs. `model_dump` with SQLModel/Pydantic v2 using the movie repository as the example.”

@@ -56,8 +56,8 @@ CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "800
 
 ### Build and Run
 ```bash
-docker build -t items-api .
-docker run --rm -p 8000:8000 items-api
+docker build -t movies-api .
+docker run --rm -p 8000:8000 movies-api
 ```
 Test with:
 ```bash
@@ -67,17 +67,17 @@ Stop the container with `Ctrl+C` when finished.
 
 ### Discussion Points
 - Show `docker image ls` to confirm the image exists.
-- Explain the benefit: any teammate can run `docker run items-api` and get the same behavior.
+- Explain the benefit: any teammate can run `docker run movies-api` and get the same behavior.
 
 ## Part C – Hands-on Lab 2 (45 Minutes)
 ### Start nginx
 1. Create a network so containers can talk:
    ```bash
-   docker network create items-net
+   docker network create movies-net
    ```
 2. Launch the API on that network:
    ```bash
-   docker run -d --name items-api --network items-net items-api
+   docker run -d --name movies-api --network movies-net movies-api
    ```
 3. Create `ops/nginx.conf` with:
    ```nginx
@@ -85,7 +85,7 @@ Stop the container with `Ctrl+C` when finished.
        listen 80;
 
        location / {
-           proxy_pass http://items-api:8000;
+           proxy_pass http://movies-api:8000;
            proxy_set_header Host $host;
            proxy_set_header X-Real-IP $remote_addr;
        }
@@ -93,7 +93,7 @@ Stop the container with `Ctrl+C` when finished.
    ```
 4. Run nginx on the same network:
    ```bash
-   docker run -d --name items-proxy --network items-net \
+   docker run -d --name movies-proxy --network movies-net \
      -p 8080:80 \
      -v "$(pwd)/ops/nginx.conf:/etc/nginx/conf.d/default.conf:ro" \
      nginx:alpine
@@ -106,8 +106,8 @@ Stop the container with `Ctrl+C` when finished.
 
 ### Cleanup
 ```bash
-docker rm -f items-api items-proxy
-docker network rm items-net
+docker rm -f movies-api movies-proxy
+docker network rm movies-net
 ```
 
 ## EX1 Help Clinic

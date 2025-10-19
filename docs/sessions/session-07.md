@@ -26,47 +26,83 @@
 4. Mention profiling: “You do not need fancy tools today. Timing functions with `time.perf_counter` is enough to spot slowdowns.”
 5. Remind everyone to finish the AWS **Storage** module during the break so it’s uploaded by **Tuesday, Dec 9, 2025**, comfortably ahead of the **Tue Dec 16, 2025** hard deadline.
 
-## Part B – Hands-on Lab 1 (45 Minutes) – Test Expansion
-### Parametrized Tests
-Add to `tests/test_items.py`:
+## Part B – Hands-on Lab 1 (45 Minutes) – Test Expansion for Movies
+### Temporary Database Fixture (`tests/conftest.py`)
+```python
+import os
+import tempfile
+from collections.abc import Iterator
+
+import pytest
+from sqlmodel import SQLModel, create_engine
+
+from app import db, repository
+
+
+@pytest.fixture(autouse=True)
+def temporary_db(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    with tempfile.NamedTemporaryFile(suffix=".db") as tmp:
+        engine = create_engine(
+            f"sqlite:///{tmp.name}", connect_args={"check_same_thread": False}
+        )
+        monkeypatch.setattr(db, "engine", engine)
+        SQLModel.metadata.create_all(engine)
+        repository.seed_movies(engine)
+        yield
+```
+
+### Parametrized Tests (`tests/test_movies.py`)
 ```python
 import pytest
+from fastapi.testclient import TestClient
+
+from app.main import app
+
+client = TestClient(app)
 
 
 @pytest.mark.parametrize(
     "payload",
     [
-        {"name": "Marker", "quantity": 3},
-        {"name": "Notebook", "quantity": 0},
-        {"name": "Eraser", "quantity": 100},
+        {"title": "Interstellar", "year": 2014, "genre": "Sci-Fi"},
+        {"title": "Hidden Figures", "year": 2016, "genre": "Drama"},
+        {"title": "Inside Out", "year": 2015, "genre": "Animation"},
     ],
 )
-def test_create_accepts_valid_payloads(payload):
-    response = client.post("/items", json=payload)
+def test_create_movie_accepts_valid_payloads(payload):
+    response = client.post("/movies", json=payload)
     assert response.status_code == 201
-    data = response.json()
-    assert data["name"] == payload["name"]
-    assert data["quantity"] == payload["quantity"]
-```
-
-### Error Case Tests
-```python
-def test_create_rejects_invalid_quantity():
-    response = client.post("/items", json={"name": "Pen", "quantity": -1})
-    assert response.status_code == 422
-    assert "quantity" in response.text
+    body = response.json()
+    assert body["title"] == payload["title"]
+    assert body["genre"] == payload["genre"]
 
 
-def test_delete_missing_item_returns_404():
-    response = client.delete("/items/999")
+def test_rating_requires_existing_movie():
+    payload = {"movie_id": 9999, "user_id": 7, "score": 4}
+    response = client.post("/ratings", json=payload)
     assert response.status_code == 404
+
+
+def test_rating_updates_top_movies():
+    movie = client.post(
+        "/movies",
+        json={"title": "Test Feature", "year": 2023, "genre": "Thriller"},
+    ).json()
+    client.post(
+        "/ratings",
+        json={"movie_id": movie["id"], "user_id": 1, "score": 5},
+    )
+    top = client.get("/movies/top?limit=1").json()
+    assert top
+    assert top[0]["title"] == "Test Feature"
+    assert top[0]["average_rating"] == 5
 ```
 
 ### Run the Suite
 ```bash
 uv run pytest -q
 ```
-Highlight how failures clearly indicate which case broke.
+Encourage students to watch for failing assertions and tie them back to missing edge cases.
 
 ## Part C – Hands-on Lab 2 (45 Minutes) – Logging and Profiling
 ### Configure Logging
@@ -77,7 +113,7 @@ import time
 from fastapi import Request
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-logger = logging.getLogger("items-service")
+logger = logging.getLogger("movie-service")
 
 
 @app.middleware("http")
@@ -98,18 +134,18 @@ async def log_requests(request: Request, call_next):
 ### Mini Profiling Exercise
 1. Create a slow endpoint for demonstration:
    ```python
-   @app.get("/slow")
+   @app.get("/debug/slow")
    def slow_endpoint() -> dict[str, str]:
        time.sleep(0.2)
        return {"status": "slow"}
    ```
-2. Call it with `curl http://localhost:8000/slow` and observe log output showing ~200 ms.
-3. Remove or comment out the slow endpoint after the demo, keeping the profiling technique.
+2. Call it with `curl http://localhost:8000/debug/slow` and observe the log line showing ~200 ms.
+3. Remove or comment out the endpoint after the demo.
 
 ### Student Task
-- Intentionally fail a test, read the failure, and fix it.
-- Trigger logging by hitting `/items` and `/items/1`.
-- Capture a log snippet for their notes.
+- Break a test intentionally, rerun pytest, and read the failure message.
+- Trigger logging by calling `/movies`, `/movies/top`, and `/ratings`.
+- Capture a log snippet highlighting method, path, status, and duration for their notes.
 
 ## EX2 Work Sprint (10 Minutes)
 - Remind: Exercise 2 due Tuesday, Dec 23, 2025.
@@ -122,15 +158,15 @@ async def log_requests(request: Request, call_next):
 - When parametrized tests appear to share state, ensure fixtures recreate the database for each test.
 
 ## Student Success Criteria
-- Tests cover both success and failure scenarios and run green.
+- Pytest suite covers movie creation, ratings, and the `/movies/top` endpoint without regressions.
 - Request logs show method, path, status, and duration for each request.
 - Students can explain how they would time a slow function or endpoint.
 - Students know the Storage module soft deadline (**Dec 9**) and hard deadline (**Dec 16**) and have a plan to submit the completion proof on time.
 
 ## AI Prompt Kit (Copy/Paste)
-- “Write parametrized pytest tests for a FastAPI items service covering valid and invalid payloads, and a 404 path for GET /items/{id}. Use `TestClient`.”
-- “Add an HTTP middleware to FastAPI that logs method, path, status, and duration in milliseconds using `logging` and `time.perf_counter`. Return the response unchanged.”
-- “Show a minimal example of measuring function execution time with `time.perf_counter` and printing the result.”
+- “Write parametrized pytest tests for a FastAPI movie service covering valid movie payloads, rating validation, and `/movies/top`. Use `TestClient`.”
+- “Add an HTTP middleware to FastAPI that logs movie service requests (method/path/status/duration) using `logging` + `time.perf_counter`.”
+- “Show a minimal example of timing a Python function with `time.perf_counter` and printing the elapsed milliseconds.”
 
 ## Quick Reference (External Search / ChatGPT)
 - **Google:** `pytest parametrized tests example`

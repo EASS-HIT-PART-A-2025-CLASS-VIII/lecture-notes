@@ -185,9 +185,17 @@ def require_role(role: str):
 
 Protect mutating endpoints:
 ```python
-@app.post("/items", response_model=ItemRead, status_code=201)
-def create_item(payload: ItemCreate, user: User = Depends(require_role("editor"))) -> ItemRead:
-    return repository.create_item(payload)
+@app.post("/movies", response_model=MovieRead, status_code=201)
+def create_movie(payload: MovieCreate, user: User = Depends(require_role("editor"))) -> MovieRead:
+    return repository.create_movie(payload)
+
+
+@app.post("/ratings", status_code=204)
+def create_rating(payload: RatingCreate, user: User = Depends(require_role("editor"))) -> None:
+    try:
+        repository.add_rating(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 ```
 (Apply similar dependencies to PUT/PATCH/DELETE routes.)
 
@@ -205,8 +213,8 @@ def test_login_success():
     assert response.status_code == 200
     token = response.json()["access_token"]
     protected = client.post(
-        "/items",
-        json={"name": "Secure Item", "quantity": 1},
+        "/movies",
+        json={"title": "Secure", "year": 2024, "genre": "Drama"},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert protected.status_code == 201
@@ -220,8 +228,8 @@ def test_login_failure():
 def test_forbidden_for_viewer():
     token = client.post("/token", data={"username": "student", "password": "secret"}).json()["access_token"]
     response = client.post(
-        "/items",
-        json={"name": "Forbidden", "quantity": 1},
+        "/movies",
+        json={"title": "Forbidden", "year": 2024, "genre": "Drama"},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 403

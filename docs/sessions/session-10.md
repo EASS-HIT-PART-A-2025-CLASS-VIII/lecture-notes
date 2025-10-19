@@ -4,18 +4,18 @@
 - **Theme:** Run multiple services together with Docker Compose and document how they interact.
 
 ## Learning Objectives
-- Describe why multi-service architectures use reverse proxies.
-- Write a Docker Compose file that starts the API and nginx front door.
-- Document service contracts (endpoints, ports, health checks) clearly.
+- Describe why multi-service architectures use reverse proxies and shared caches.
+- Write a Docker Compose file that starts the API, a Redis cache, and an nginx front door.
+- Document service contracts (endpoints, ports, health checks, cache responsibilities) clearly.
 
 ## Agenda
 | Segment | Duration | Format | Focus |
 | --- | --- | --- | --- |
 | Holiday recap | 10 min | Conversation | Quick check-in and EX3 excitement |
 | Microservice rationale | 20 min | Talk + drawing | When to split services, pros/cons |
-| Service contracts | 15 min | Talk | HTTP contracts, versioning, health checks |
+| Service contracts | 15 min | Talk | HTTP contracts, cache responsibilities, health checks |
 | AWS module check | 5 min | Announcement | Confirm AWS Academy certificates were submitted by Dec 16 and note any make-up steps |
-| Lab 1 | 45 min | Guided coding | Compose file + nginx proxy |
+| Lab 1 | 45 min | Guided coding | Compose file + Redis cache + nginx proxy |
 | Break | 10 min | — | |
 | Lab 2 | 45 min | Guided coding | Structured logging/metrics + documentation |
 | EX3 assignment briefing | 10 min | Talk | Requirements, milestones, grading |
@@ -30,6 +30,39 @@
 ### Directory Prep
 ```bash
 mkdir -p ops
+```
+
+### Install Redis Client
+```bash
+uv add redis
+```
+
+### Update `app/main.py`
+Add Redis caching for recommendations:
+```python
+import json
+import os
+import redis
+
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+redis_client = redis.Redis.from_url(REDIS_URL, decode_responses=True)
+
+
+@app.get("/recommendations/{user_id}")
+def get_recommendations(user_id: int, limit: int = 5) -> list[int]:
+    cached = redis_client.get("recommendations")
+    if cached:
+        model = json.loads(cached)
+        return model.get(str(user_id), [])[:limit]
+    ratings = repository.list_ratings()
+    results = recommender.recommend_for_user(ratings, user_id, k=limit)
+    return results
+```
+
+Inside the background task from Session 09, persist the rebuilt model:
+```python
+model = recommender.build_model(ratings)
+redis_client.set("recommendations", json.dumps(model))
 ```
 
 ### nginx Configuration (`ops/nginx.conf`)
@@ -53,13 +86,27 @@ services:
   api:
     build: .
     command: ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      REDIS_URL: redis://redis:6379/0
     ports:
       - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 10s
       timeout: 2s
       retries: 5
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 2s
+      retries: 10
   nginx:
     image: nginx:alpine
     volumes:
@@ -75,15 +122,14 @@ services:
 ```bash
 docker compose up --build
 ```
-Test:
+Test through the proxy and cache:
 ```bash
 curl http://localhost:8080/health
+curl http://localhost:8080/recommendations/7?limit=3
 ```
-Expect `{"status":"ok"}`.
 
 ### Clean Up
-`Ctrl+C` to stop, then `docker compose down` to remove containers.
-
+`Ctrl+C` to stop, then `docker compose down`
 ## Part C – Hands-on Lab 2 (45 Minutes)
 ### Add Structured Logs
 Update `app/main.py` logging middleware to output JSON-style lines:
@@ -111,9 +157,9 @@ async def log_requests(request: Request, call_next):
 ### Document Service Contract
 Create `docs/service-contract.md` and list:
 - External URL: `http://localhost:8080`
-- Public endpoints: `/health`, `/items`, `/items/{id}`, `/imports`, `/imports/{task_id}`
+- Public endpoints: `/health`, `/movies`, `/movies/top`, `/recommendations/{user_id}`, `/recommender/rebuild` (async).
 - Expected request/response shapes (copy from FastAPI models)
-- Authentication: none yet (tease Session 11)
+- Authentication: none yet (Session 11 adds JWT for protected writes). Include Redis as the cache provider for recommendation data.
 
 ### Optional Metrics Endpoint
 Add a simple `/metrics` route returning how many requests were processed (store a counter in `app.state`).
@@ -134,9 +180,9 @@ Add a simple `/metrics` route returning how many requests were processed (store 
 - Health check failing? Make sure `/health` returns 200 and the container exposes port 8000.
 
 ## Student Success Criteria
-- `docker compose up` starts both `api` and `nginx` services.
-- API reachable via `http://localhost:8080` with proxied traffic logged.
-- Service contract document created and captures current endpoints and expectations.
+- `docker compose up` starts `api`, `redis`, and `nginx` services.
+- API reachable via `http://localhost:8080` with proxied traffic logged and cached recommendations served via Redis.
+- Service contract document captured endpoints, expected JSON payloads, and cache responsibilities (what lives in Redis vs. SQLite).
 - Students have confirmed their AWS Databases certificate was submitted by **Tue Dec 16, 2025** (or have a catch-up plan).
 
 ## Optional: Quick CI with GitHub Actions
@@ -161,10 +207,10 @@ jobs:
 ```
 
 ## AI Prompt Kit (Copy/Paste)
-- “Write a `docker-compose.yml` with services `api` (builds current dir, exposes 8000, healthcheck hitting `/health`) and `nginx` (alpine, mounts `ops/nginx.conf`, exposes 8080, depends_on api healthy).”
-- “Draft an `nginx.conf` that proxies `/` to `http://api:8000` with standard headers and returns 200 for `/health` passthrough.”
+- “Write a `docker-compose.yml` with services `api`, `redis`, and `nginx` where the API consumes `REDIS_URL` and waits for Redis to be healthy.”
+- “Draft an `nginx.conf` that proxies `/` to `http://api:8000` with standard headers and passes through `/health` and `/recommendations`.”
 - “Create a minimal GitHub Actions workflow that installs uv, syncs dependencies, and runs pytest on every push.”
 
 ## Quick Reference (External Search / ChatGPT)
-- **Google:** `docker compose healthcheck example`
-- **ChatGPT prompt:** “List three talking points to explain why we put nginx in front of FastAPI when teaching Docker Compose.”
+- **Google:** `docker compose fastapi redis nginx example`
+- **ChatGPT prompt:** “List three talking points to explain why we pair FastAPI + Redis + nginx in a Compose demo.”

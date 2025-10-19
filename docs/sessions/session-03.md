@@ -1,55 +1,61 @@
-# Session 03 – FastAPI Fundamentals
+# Session 03 – FastAPI Fundamentals (Movie Edition)
 
 - **Date:** Monday, Nov 17, 2025
-- **Theme:** Build the first REST API with FastAPI and validate it using automated tests.
+- **Theme:** Build the first version of the movie recommendation backend with FastAPI and confidence-building tests.
 
 ## Learning Objectives
-- Create typed request and response models with `pydantic`.
-- Map HTTP routes to Python functions in FastAPI.
-- Test endpoints using `fastapi.testclient.TestClient`.
+- Map HTTP routes to Python functions with FastAPI.
+- Use Pydantic models for movie payload validation.
+- Write unit and integration tests with `TestClient`.
 
 ## Agenda
 | Segment | Duration | Format | Focus |
 | --- | --- | --- | --- |
-| Recap & motivation | 10 min | Talk | Why we need our own server instead of relying on httpbin |
+| Recap & motivation | 10 min | Talk | Why we need our own movie service rather than httpbin |
 | FastAPI walkthrough | 20 min | Talk + live coding | Anatomy of a FastAPI app |
 | Testing mindset | 15 min | Talk + discussion | Benefits of tests, how they guide development |
-| Lab 1 | 45 min | Guided coding | Build the API |
+| Lab 1 | 45 min | Guided coding | Build in-memory `/movies` API |
 | Break | 10 min | — | |
 | Lab 2 | 45 min | Guided coding | Create tests and run them |
-| Q&A on EX1 | 10 min | Discussion | Clarify remaining questions about the assignment |
+| Q&A on EX1 | 10 min | Discussion | Clarify assignment questions |
 
 ## Teaching Script – Why FastAPI?
-1. “Last time we acted as API clients. Today the class becomes the API provider.”
-2. “FastAPI gives us a quick way to describe endpoints with Python functions and uses `pydantic` so bad inputs are rejected automatically.”
-3. “We practice Test-Driven Development lite: write an endpoint, then confirm it with a test.”
-4. Write on the board what EX1 requires: `POST /items`, `GET /items/{id}`, `GET /items`, `PUT`, `DELETE`, validation, tests, Dockerfile.
+1. “We want to own the movie catalogue. Today we become the API provider.”
+2. FastAPI maps functions to routes and validates payloads using Pydantic.
+3. Tests give us confidence so later refactors (SQLite, Redis, ALS) don’t break things.
+4. Write on the board the EX1 checklist: `/movies` CRUD, validation, tests, Docker.
 
 ## Part B – Hands-on Lab 1 (45 Minutes)
 ### Setup Commands
 ```bash
 cd hello-uv
-uv add fastapi uvicorn
+uv add fastapi uvicorn pydantic httpx pytest
 mkdir -p app
 touch app/__init__.py app/main.py
 ```
 
-### Live Coding Script
-Explain each block while typing:
+### Live Coding Script (`app/main.py`)
 ```python
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-app = FastAPI(title="Items Service", version="0.1.0")
+app = FastAPI(title="Movie Service", version="0.1.0")
 
 
-class Item(BaseModel):
-    id: int | None = None
-    name: str = Field(..., min_length=1, max_length=30)
-    quantity: int = Field(..., ge=0, le=100)
+class Movie(BaseModel):
+    id: int
+    title: str
+    year: int = Field(ge=1900, le=2100)
+    genre: str
 
 
-ITEMS: dict[int, Item] = {}
+class MovieCreate(BaseModel):
+    title: str
+    year: int = Field(ge=1900, le=2100)
+    genre: str
+
+
+MOVIES: dict[int, Movie] = {}
 NEXT_ID = 1
 
 
@@ -58,61 +64,54 @@ def health_check() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.post("/items", response_model=Item)
-def create_item(item: Item) -> Item:
+@app.post("/movies", response_model=Movie, status_code=201)
+def create_movie(payload: MovieCreate) -> Movie:
     global NEXT_ID
-    item.id = NEXT_ID
+    movie = Movie(id=NEXT_ID, **payload.model_dump())
+    MOVIES[movie.id] = movie
     NEXT_ID += 1
-    ITEMS[item.id] = item
-    return item
+    return movie
 
 
-@app.get("/items/{item_id}", response_model=Item)
-def read_item(item_id: int) -> Item:
-    if item_id not in ITEMS:
-        raise HTTPException(status_code=404, detail="Item not found")
-    return ITEMS[item_id]
+@app.get("/movies/{movie_id}", response_model=Movie)
+def read_movie(movie_id: int) -> Movie:
+    try:
+        return MOVIES[movie_id]
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Movie not found") from exc
 ```
 
 ### Run the Server
 ```bash
 uv run uvicorn app.main:app --reload
 ```
-Visit `http://localhost:8000/docs` in a browser and show the automatic interactive documentation. Demonstrate a POST request and inspect the response.
+Visit `http://localhost:8000/docs` to interact with the auto-generated UI.
 
-### Student Task Card
-- Start the server locally.
-- Use `curl` or the API docs to create an item:
-  ```bash
-  curl -X POST http://localhost:8000/items -H "Content-Type: application/json" -d '{"name": "Pen", "quantity": 3}'
-  ```
-- Fetch the item by ID and confirm the JSON matches.
-
-### Optional Practice Routes (Copy/Paste)
-Add two simple endpoints to practice path and query parameters:
+### Optional Practice Routes
+Add other helpers to `app/main.py`:
 ```python
-@app.get("/echo/{text}")
-def echo(text: str) -> dict[str, str]:
-    return {"echo": text}
+@app.get("/movies", response_model=list[Movie])
+def list_movies() -> list[Movie]:
+    return list(MOVIES.values())
 
 
-@app.get("/add")
-def add(a: int, b: int) -> dict[str, int]:
-    return {"result": a + b}
+@app.delete("/movies/{movie_id}", status_code=204)
+def delete_movie(movie_id: int) -> None:
+    if movie_id not in MOVIES:
+        raise HTTPException(status_code=404, detail="Movie not found")
+    MOVIES.pop(movie_id)
 ```
+
 Try:
 ```bash
-curl "http://localhost:8000/echo/hello"
-curl "http://localhost:8000/add?a=5&b=7"
+curl -X POST http://localhost:8000/movies   -H "Content-Type: application/json"   -d '{"title": "Inception", "year": 2010, "genre": "Sci-Fi"}'
+
+curl http://localhost:8000/movies
 ```
 
 ## Part C – Hands-on Lab 2 (45 Minutes)
 ### Create the Test Suite
-1. Install testing helpers if not already present:
-   ```bash
-   uv add pytest
-   ```
-2. Create `tests/test_items.py`:
+1. Create `tests/test_movies.py`:
    ```python
    from fastapi.testclient import TestClient
    from app.main import app
@@ -126,45 +125,36 @@ curl "http://localhost:8000/add?a=5&b=7"
        assert response.json() == {"status": "ok"}
 
 
-   def test_create_and_fetch_item():
+   def test_create_and_read_movie():
        create_response = client.post(
-           "/items",
-           json={"name": "Marker", "quantity": 2},
+           "/movies",
+           json={"title": "The Matrix", "year": 1999, "genre": "Sci-Fi"},
        )
-       assert create_response.status_code == 200
-       payload = create_response.json()
-       assert payload["name"] == "Marker"
-       assert payload["quantity"] == 2
+       assert create_response.status_code == 201
+       movie = create_response.json()
 
-       item_id = payload["id"]
-       fetch_response = client.get(f"/items/{item_id}")
-       assert fetch_response.status_code == 200
-       assert fetch_response.json()["id"] == item_id
+       read_response = client.get(f"/movies/{movie['id']}")
+       assert read_response.status_code == 200
+       assert read_response.json()["title"] == "The Matrix"
 
 
-   def test_missing_item_returns_404():
-       response = client.get("/items/999")
+   def test_missing_movie_returns_404():
+       response = client.get("/movies/999")
        assert response.status_code == 404
-       assert response.json()["detail"] == "Item not found"
    ```
-3. Run:
+2. Run:
    ```bash
    uv run pytest -q
    ```
-4. Encourage students to add a validation test:
+3. Encourage students to add a validation test:
    ```python
-   def test_create_rejects_empty_name():
-       response = client.post("/items", json={"name": "", "quantity": 1})
+   def test_create_rejects_bad_year():
+       response = client.post(
+           "/movies",
+           json={"title": "Future", "year": 3020, "genre": "Sci-Fi"},
+       )
        assert response.status_code == 422
    ```
-
-## AI Prompt Kit (Copy/Paste)
-- “Write a FastAPI endpoint that accepts path and query parameters and returns validated JSON. Include two example curl commands.”
-- “Generate pytest tests for FastAPI endpoints /echo/{text} and /add?a&b, covering happy and error paths.”
-
-## Quick Reference (External Search / ChatGPT)
-- **Google:** `FastAPI TestClient example`
-- **ChatGPT prompt:** “Explain, in three bullet points, how to organize FastAPI tests that mix pure function tests with TestClient integration checks.”
 
 ### Reinforce Testing Mindset
 - Green tests mean the behavior matches expectations.
@@ -172,15 +162,24 @@ curl "http://localhost:8000/add?a=5&b=7"
 
 ## EX1 Reminder
 - Today’s code is the starting point.
-- Homework: add `GET /items` listing endpoint.
-- Suggested next steps: implement `PUT` and `DELETE`, write tests for each.
+- Homework: add `/movies` listing, `/movies/{id}` update/delete, and tests for each.
+- Suggested next steps: introduce ratings, write tests for 404 and validation paths.
 
 ## Troubleshooting Notes
 - If `uvicorn` cannot import `app.main`, ensure `app/__init__.py` exists.
-- If the server port is in use, stop previous runs or change to `--port 8001`.
-- For validation errors, inspect the 422 response to see details about the failing field.
+- If the server port is busy, stop previous runs or change to `--port 8001`.
+- Validation errors show detailed JSON; read them aloud when debugging.
 
 ## Student Success Criteria
 - Server returns 200 from `/health`.
-- Students can create and read back an item.
+- Students can create and read movies via the API.
 - Tests run green and include at least one failure case (404 or validation).
+
+## AI Prompt Kit (Copy/Paste)
+- “Write a FastAPI endpoint that accepts movie metadata (title/year/genre), validates fields, and returns a JSON response.”
+- “Generate pytest tests for POST `/movies` and GET `/movies/{id}` covering happy path and 404 path.”
+- “Explain how to structure FastAPI apps so core logic (movie storage) can later be swapped with SQLite.”
+
+## Quick Reference (External Search / ChatGPT)
+- **Google:** `FastAPI pydantic BaseModel tutorial`
+- **ChatGPT prompt:** “Explain, in three bullet points, how to organize FastAPI tests that mix pure function tests with TestClient integration checks.”

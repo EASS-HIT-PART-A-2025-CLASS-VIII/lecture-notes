@@ -5,10 +5,10 @@ Every project is designed for undergraduates who are new to full-stack developme
 ## EX1 – Backend Foundations
 - **Assigned:** Monday, Nov 10, 2025
 - **Due:** Tuesday, Dec 2, 2025 at 23:59 (Israel time)
-- **Goal:** Build a FastAPI service that supports create, read, update, and delete operations for items.
+- **Goal:** Build a FastAPI movie service that supports create/read/update/delete operations and records ratings.
 - **Required Features:**
-  - Endpoints: `POST /items`, `GET /items`, `GET /items/{id}`, `PUT /items/{id}`, `DELETE /items/{id}`.
-  - Validation via `pydantic` models.
+  - Endpoints: `POST /movies`, `GET /movies`, `GET /movies/{id}`, `PUT /movies/{id}`, `DELETE /movies/{id}`, plus `POST /ratings` for new scores.
+  - Validation via `pydantic` models (title/year/genre, rating score 1–5).
   - Automated tests using pytest and FastAPI’s `TestClient`.
   - Dockerfile using uv to install dependencies.
   - README documenting setup, run commands, and any AI assistance.
@@ -17,15 +17,15 @@ Every project is designed for undergraduates who are new to full-stack developme
 ## EX2 – Frontend Integration
 - **Assigned:** Monday, Dec 1, 2025
 - **Due:** Tuesday, Dec 23, 2025 at 23:59 (Israel time)
-- **Goal:** Create a simple user interface that interacts with the EX1 API.
+- **Goal:** Create a movie dashboard UI that interacts with the EX1 API (list catalogue, submit ratings).
 - **Choices:**
   - Streamlit (fast path, Python-based).
   - Minimal React app (JavaScript-based) using Vite.
 - **Required Features:**
-  - List existing items from the API.
-  - Create new items.
-  - Update and delete items (via buttons or form controls).
-  - Handle error states (show friendly messages when the API fails).
+  - List existing movies (title/year/genre/average rating) from the API.
+  - Create new movies and submit ratings.
+  - Update and delete movies (via controls) and show top movies.
+  - Handle error states (failed fetch, validation errors, unauthorised requests).
   - README with setup steps, including how to run both the API and the UI.
 - **Optional Stretch (+10 pts):** Integrate the UI into Docker Compose so one command starts both services.
 - **Rubric (100 pts):** feature completeness 35, user experience 15, error handling 15, code quality/organization 15, documentation 10, optional Compose integration +10 bonus.
@@ -37,11 +37,11 @@ Every project is designed for undergraduates who are new to full-stack developme
 - **Goal:** Deliver a multi-service stack using Docker Compose and one advanced capability.
 - **Required Services:** at least the FastAPI API and an nginx reverse proxy. Optional additional services include databases, frontends, or monitoring tools.
 - **Advanced Feature Choices (pick one):**
-  1. Asynchronous background processing with status tracking.
+  1. Asynchronous recommendation rebuild job (Session 09).
   2. Authentication/authorization (JWT-based, roles, protected routes).
   3. Observability (metrics endpoint, structured logs, or tracing).
 - **Deliverables:**
-  - Working Compose stack (`docker compose up --build` runs without errors).
+  - Working Compose stack (`docker compose up --build` runs without errors) with API, Redis cache, and nginx proxy.
   - Automated tests covering the advanced feature.
   - README including architecture diagram or description, environment variables, and AI usage notes.
   - Optional: expose a tool-friendly endpoint and demonstrate calling it from a script or local LLM.

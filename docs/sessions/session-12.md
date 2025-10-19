@@ -14,7 +14,7 @@
 | Warm-up | 10 min | Discussion | “What finishing touches did you add to EX3 over the weekend?” |
 | Tool-friendly API talk | 25 min | Talk + examples | Deterministic responses, idempotency, explicit error codes |
 | Prompt-to-tool demo | 20 min | Live coding | Call an API endpoint from LM Studio or curl |
-| Lab 1 | 45 min | Guided coding | Create `/tool/create-item` with clear schema |
+| Lab 1 | 45 min | Guided coding | Create `/tool/recommend-movie` with clear schema |
 | Break | 10 min | — | |
 | Lab 2 | 45 min | Guided practice | Run readiness checklist, update docs, rehearse demos |
 | Closing circle | 10 min | Discussion | Share biggest lessons from the course |
@@ -24,7 +24,7 @@
 2. Define a good tool endpoint:
    - Input schema fully specified.
    - Output contains `status`, `data`, and `error` fields.
-   - Errors use machine-readable codes (`INVALID_NAME`, `DUPLICATE_ITEM`).
+   - Errors use machine-readable codes (for example, `NO_DATA`, `UNAUTHORISED`).
 3. Introduce idempotency: sending the same request twice should not create duplicate records.
 4. Stress documentation: include example request/response bodies right in the README.
 
@@ -33,30 +33,30 @@
 Add to `app/main.py`:
 ```python
 from fastapi import Body
+from pydantic import BaseModel
 
 
-@app.post("/tool/create-item")
-async def tool_create_item(
-    payload: ItemCreate = Body(..., embed=True),
+class ToolRecommendation(BaseModel):
+    user_id: int
+    limit: int = 5
+
+
+@app.post("/tool/recommend-movie")
+async def tool_recommend_movie(
+    payload: ToolRecommendation = Body(..., embed=True),
     user: User = Depends(require_role("editor")),
 ) -> dict[str, object]:
-    existing = repository.list_items()
-    if any(item.name.lower() == payload.name.lower() for item in existing):
-        return {
-            "status": "error",
-            "error": {
-                "code": "DUPLICATE_ITEM",
-                "message": "An item with that name already exists.",
-            },
-            "data": None,
-        }
-    created = repository.create_item(payload)
+    ratings = repository.list_ratings()
+    recommendations = recommender.recommend_for_user(
+        ratings,
+        user_id=payload.user_id,
+        k=payload.limit,
+    )
     return {
         "status": "ok",
         "data": {
-            "id": created.id,
-            "name": created.name,
-            "quantity": created.quantity,
+            "user_id": payload.user_id,
+            "recommendations": recommendations,
         },
         "error": None,
     }
@@ -81,13 +81,13 @@ export TOKEN="<paste-access-token-here>"
 ### Documentation Block
 Encourage instructors to paste the following example into `docs/service-contract.md`:
 ```markdown
-### POST /tool/create-item
+### POST /tool/recommend-movie
 - Request body:
   ```json
   {
     "payload": {
-      "name": "Marker",
-      "quantity": 5
+      "user_id": 42,
+      "limit": 5
     }
   }
   ```
@@ -96,22 +96,21 @@ Encourage instructors to paste the following example into `docs/service-contract
   {
     "status": "ok",
     "data": {
-      "id": 12,
-      "name": "Marker",
-      "quantity": 5
+      "user_id": 42,
+      "recommendations": [3, 7, 1, 9, 5]
     },
     "error": null
   }
   ```
-- Error response (duplicate name):
+- Error response (no data yet):
   ```json
   {
-    "status": "error",
-    "data": null,
-    "error": {
-      "code": "DUPLICATE_ITEM",
-      "message": "An item with that name already exists."
-    }
+    "status": "ok",
+    "data": {
+      "user_id": 42,
+      "recommendations": []
+    },
+    "error": null
   }
   ```
 ```
@@ -119,10 +118,10 @@ Encourage instructors to paste the following example into `docs/service-contract
 ### Tool Call Demo
 Use LM Studio or plain `curl`:
 ```bash
-curl -X POST http://localhost:8000/tool/create-item \
+curl -X POST http://localhost:8000/tool/recommend-movie \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
-  -d '{"payload": {"name": "Tool item", "quantity": 2}}'
+  -d '{"payload": {"user_id": 42, "limit": 5}}'
 ```
 Show how deterministic responses make it easy to parse results.
 
@@ -135,7 +134,7 @@ payload = {
     "messages": [
         {
             "role": "user",
-            "content": "Should I call POST /tool/create-item with name=Notebook?"
+            "content": "Should I call POST /tool/recommend-movie with name=Notebook?"
         }
     ],
 }
@@ -161,19 +160,14 @@ Adjust the LM Studio URL/model as needed.
 - AWS Academy certificates (Compute/Storage/Databases) were uploaded by **Tue Dec 16, 2025** (or the make-up plan is in motion).
 - Verify the tool endpoint directly:
   ```bash
-  curl -X POST http://localhost:8000/tool/create-item \\
-    -H "Content-Type: application/json" \\
-    -H "Authorization: Bearer $TOKEN" \\
-    -d '{\\"payload\\": {\\"name\\": \"Dry run\", \"quantity\": 1}}'
+  curl -X POST http://localhost:8000/tool/recommend-movie     -H "Content-Type: application/json"     -H "Authorization: Bearer $TOKEN"     -d '{"payload": {"user_id": 42, "limit": 3}}'
   ```
 - If using Docker Compose, run a full-system check:
   ```bash
   docker compose up --build
-  curl -X POST http://localhost:8080/tool/create-item \\
-    -H "Content-Type: application/json" \\
-    -H "Authorization: Bearer $TOKEN" \\
-    -d '{\\"payload\\": {\\"name\\": \"Compose check\", \"quantity\": 1}}'
+  curl -X POST http://localhost:8080/tool/recommend-movie     -H "Content-Type: application/json"     -H "Authorization: Bearer $TOKEN"     -d '{"payload": {"user_id": 42, "limit": 3}}'
   docker compose down
+  ```
   ```
 
 ### Demo Rehearsal
@@ -200,7 +194,7 @@ Adjust the LM Studio URL/model as needed.
 - When LM Studio is not running, start it before executing `scripts/ask_tool.py` or skip the optional demo.
 
 ## Student Success Criteria
-- `/tool/create-item` returns deterministic JSON for both success and error cases.
+- `/tool/recommend-movie` returns deterministic JSON for both success and error cases.
 - Documentation includes copy-paste-ready examples of requests and responses.
 - Teams feel ready for the Jan 20 milestone demo and know the next steps for the final submission.
 - AWS module submissions confirmed (Dec 16 deadline met) or escalated for make-up.
@@ -208,15 +202,15 @@ Adjust the LM Studio URL/model as needed.
 ## Note on Authorization for Tool Endpoint
 If you did not implement Session 11 security, temporarily remove the dependency from the tool route:
 ```python
-@app.post("/tool/create-item")
-async def tool_create_item(payload: ItemCreate) -> dict[str, object]:
+@app.post("/tool/recommend-movie")
+async def tool_recommend_movie(payload: ToolRecommendation) -> dict[str, object]:
     # same logic as above, without a user dependency
     ...
 ```
 Reintroduce the `require_role("editor")` dependency once JWT auth is in place.
 
 ## AI Prompt Kit (Copy/Paste)
-- “Design a deterministic tool endpoint for a FastAPI items API that takes `{name, quantity}` and returns a wrapper object `{status,data,error}` with explicit error codes for duplicates. Include example requests/responses.”
+- “Design a deterministic tool endpoint for the movie service that accepts `{user_id, limit}` and returns `{status,data,error}` with recommendations.”
 - “Prepare a milestone readiness checklist for a two-service Docker Compose stack (api + nginx) including `.env.example`, health checks, tests, and documentation.”
 - “Write a curl command that calls a protected POST endpoint with a Bearer token and JSON body, and then parse the JSON with `jq` to extract the `id`.”
 
