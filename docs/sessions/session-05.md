@@ -297,6 +297,84 @@ def temporary_db(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 ```
 
 ### Expand Tests (`tests/test_movies.py`)
+Add assertions for list, recommendations, and error paths:
+```python
+import pytest
+from fastapi.testclient import TestClient
+
+from app.main import app
+
+
+client = TestClient(app)
+
+
+def test_list_movies():
+    response = client.get("/movies")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 5
+    assert data[0]["title"] == "Inception"
+
+
+def test_get_movie():
+    response = client.get("/movies/1")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == 1
+    assert data["title"] == "Inception"
+
+
+def test_get_movie_not_found():
+    response = client.get("/movies/999")
+    assert response.status_code == 404
+
+
+def test_create_movie():
+    payload = {"title": "Parasite", "year": 2019, "genre": "Thriller"}
+    response = client.post("/movies", json=payload)
+    assert response.status_code == 201
+    data = response.json()
+    assert data["title"] == "Parasite"
+    assert data["id"] is not None
+
+
+def test_add_rating():
+    response = client.post(
+        "/ratings",
+        json={"movie_id": 1, "user_id": 42, "score": 5}
+    )
+    assert response.status_code == 204
+
+
+def test_add_rating_invalid_movie():
+    response = client.post(
+        "/ratings",
+        json={"movie_id": 999, "user_id": 42, "score": 5}
+    )
+    assert response.status_code == 404
+
+
+def test_top_movies():
+    # Add ratings
+    client.post("/ratings", json={"movie_id": 1, "user_id": 1, "score": 5})
+    client.post("/ratings", json={"movie_id": 1, "user_id": 2, "score": 5})
+    client.post("/ratings", json={"movie_id": 2, "user_id": 1, "score": 3})
+
+    response = client.get("/movies/top?limit=2")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) <= 2
+    assert data[0]["average_rating"] >= (data[1]["average_rating"] or 0)
+```
+
+### Run Tests
+```bash
+uv run pytest tests/test_movies.py -v
+```
+
+All tests should pass! 🎉
+
+### Expand Tests (`tests/test_movies.py`)
 Add assertions for list, recommendations, and error paths. Example snippet:
 ```python
 from fastapi.testclient import TestClient

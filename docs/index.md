@@ -11,18 +11,19 @@ Welcome! This site hosts the 12-week plan for the EASS course reboot. Everything
 - [Exercise lineup and deadlines](exercises.md)
 - [AWS Academy Cloud Foundations modules](exercises.md#aws-academy-cloud-foundations-modules)
 - [Legacy slide archives](../lectures/archive/README.md)
+- [Troubleshooting tips](troubleshooting.md)
 
 ## Course Schedule
 1. [Session 01 – Kickoff and Environment Setup](sessions/session-01.md)
 2. [Session 02 – Introduction to HTTP and REST](sessions/session-02.md)
 3. [Session 03 – FastAPI Fundamentals](sessions/session-03.md)
 4. [Session 04 – Docker Basics and Reverse Proxy Demo](sessions/session-04.md)
-5. [Session 05 – Adding Persistence with SQLite](sessions/session-05.md)
-6. [Session 06 – Building a Simple Frontend](sessions/session-06.md)
+5. [Session 05 – Movie Service Persistence with SQLite](sessions/session-05.md)
+6. [Session 06 – Movie Dashboards with Streamlit & React](sessions/session-06.md)
 7. [Session 07 – Testing, Logging, and Profiling Basics](sessions/session-07.md)
 8. [Session 08 – Working with AI Coding Assistants](sessions/session-08.md)
-9. [Session 09 – Async Jobs and Reliability Basics](sessions/session-09.md)
-10. [Session 10 – Docker Compose and Service Contracts](sessions/session-10.md)
+9. [Session 09 – Async Recommendation Refresh](sessions/session-09.md)
+10. [Session 10 – Docker Compose, Redis, and Service Contracts](sessions/session-10.md)
 11. [Session 11 – Security Foundations](sessions/session-11.md)
 12. [Session 12 – Tool-Friendly APIs and Final Prep](sessions/session-12.md)
 
