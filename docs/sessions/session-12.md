@@ -1,0 +1,168 @@
+# Session 12 – Tool-Friendly APIs and Final Prep
+
+- **Date:** Monday, Jan 19, 2026
+- **Theme:** Shape APIs so they are easy for automation tools and LLMs to consume, and rehearse for the Exercise 3 milestone.
+
+## Learning Objectives
+- Design deterministic endpoints with clear success and error schemas.
+- Document API usage for both humans and automated tools.
+- Validate Exercise 3 projects against a readiness checklist.
+
+## Agenda
+| Segment | Duration | Format | Focus |
+| --- | --- | --- | --- |
+| Warm-up | 10 min | Discussion | “What finishing touches did you add to EX3 over the weekend?” |
+| Tool-friendly API talk | 25 min | Talk + examples | Deterministic responses, idempotency, explicit error codes |
+| Prompt-to-tool demo | 20 min | Live coding | Call an API endpoint from LM Studio or curl |
+| Lab 1 | 45 min | Guided coding | Create `/tool/create-item` with clear schema |
+| Break | 10 min | — | |
+| Lab 2 | 45 min | Guided practice | Run readiness checklist, update docs, rehearse demos |
+| Closing circle | 10 min | Discussion | Share biggest lessons from the course |
+
+## Teaching Script – Tool-Friendly Design
+1. “Bots are impatient students—they need predictable responses.”
+2. Define a good tool endpoint:
+   - Input schema fully specified.
+   - Output contains `status`, `data`, and `error` fields.
+   - Errors use machine-readable codes (`INVALID_NAME`, `DUPLICATE_ITEM`).
+3. Introduce idempotency: sending the same request twice should not create duplicate records.
+4. Stress documentation: include example request/response bodies right in the README.
+
+## Part B – Hands-on Lab 1 (45 Minutes)
+### Endpoint Implementation
+Add to `app/main.py`:
+```python
+from fastapi import Body
+
+
+@app.post("/tool/create-item")
+async def tool_create_item(
+    payload: ItemCreate = Body(..., embed=True),
+    user: User = Depends(require_role("editor")),
+) -> dict[str, object]:
+    existing = repository.list_items()
+    if any(item.name.lower() == payload.name.lower() for item in existing):
+        return {
+            "status": "error",
+            "error": {
+                "code": "DUPLICATE_ITEM",
+                "message": "An item with that name already exists.",
+            },
+            "data": None,
+        }
+    created = repository.create_item(payload)
+    return {
+        "status": "ok",
+        "data": {
+            "id": created.id,
+            "name": created.name,
+            "quantity": created.quantity,
+        },
+        "error": None,
+    }
+```
+
+### Documentation Block
+Encourage instructors to paste the following example into `docs/service-contract.md`:
+```markdown
+### POST /tool/create-item
+- Request body:
+  ```json
+  {
+    "payload": {
+      "name": "Marker",
+      "quantity": 5
+    }
+  }
+  ```
+- Success response:
+  ```json
+  {
+    "status": "ok",
+    "data": {
+      "id": 12,
+      "name": "Marker",
+      "quantity": 5
+    },
+    "error": null
+  }
+  ```
+- Error response (duplicate name):
+  ```json
+  {
+    "status": "error",
+    "data": null,
+    "error": {
+      "code": "DUPLICATE_ITEM",
+      "message": "An item with that name already exists."
+    }
+  }
+  ```
+```
+
+### Tool Call Demo
+Use LM Studio or plain `curl`:
+```bash
+curl -X POST http://localhost:8000/tool/create-item \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"payload": {"name": "Tool item", "quantity": 2}}'
+```
+Show how deterministic responses make it easy to parse results.
+
+## Part C – Hands-on Lab 2 (45 Minutes)
+### Readiness Checklist
+ Provide teams with the following list and check off items together:
+- `docker compose up --build` succeeds on a clean machine.
+- `.env.example` documents required secrets.
+- README explains setup, tests, AI assistance, and tool endpoint usage.
+- Automated tests pass (`uv run pytest -q`).
+- Advanced feature works end-to-end (async job, auth, or observability).
+- Optional: metrics endpoint or structured logs accessible through Compose.
+- AWS Academy certificates (Compute/Storage/Databases) were uploaded by **Tue Dec 16, 2025** (or the make-up plan is in motion).
+
+### Demo Rehearsal
+- Each team runs through a three-minute milestone presentation:
+  1. Problem solved.
+  2. Architecture (show Compose services).
+  3. Advanced feature demo.
+  4. Next steps before Feb 10 final submission.
+
+### Support Planning
+- Schedule office hours for the final stretch.
+- Encourage teams to list remaining tasks in their project tracker.
+
+## Closing Circle Prompts
+- “What concept felt mysterious at the start but now makes sense?”
+- “How will you keep practicing after this course?”
+- “What feedback do you have for the next cohort?”
+
+## Troubleshooting
+- If the tool endpoint requires authentication, remind teams to create a dedicated API token user or to explain how to obtain a token in the README.
+- When `curl` fails with 422, check whether the JSON used the `payload` wrapper (because `embed=True`).
+- If Compose logs show stale data, remind teams to prune Docker volumes (`docker compose down -v`) and restart.
+
+## Student Success Criteria
+- `/tool/create-item` returns deterministic JSON for both success and error cases.
+- Documentation includes copy-paste-ready examples of requests and responses.
+- Teams feel ready for the Jan 20 milestone demo and know the next steps for the final submission.
+- AWS module submissions confirmed (Dec 16 deadline met) or escalated for make-up.
+
+## Note on Authorization for Tool Endpoint
+If you did not implement Session 11 security, temporarily remove the dependency from the tool route:
+```python
+@app.post("/tool/create-item")
+async def tool_create_item(payload: ItemCreate) -> dict[str, object]:
+    # same logic as above, without a user dependency
+    ...
+```
+Reintroduce the `require_role("editor")` dependency once JWT auth is in place.
+
+## AI Prompt Kit (Copy/Paste)
+- “Design a deterministic tool endpoint for a FastAPI items API that takes `{name, quantity}` and returns a wrapper object `{status,data,error}` with explicit error codes for duplicates. Include example requests/responses.”
+- “Prepare a milestone readiness checklist for a two-service Docker Compose stack (api + nginx) including `.env.example`, health checks, tests, and documentation.”
+- “Write a curl command that calls a protected POST endpoint with a Bearer token and JSON body, and then parse the JSON with `jq` to extract the `id`.”
+
+## Quick Reference (External Search / ChatGPT)
+- **Google:** `FastAPI tool endpoint deterministic response`
+- **ChatGPT prompt:** “Provide a 5-point team readiness checklist before a software milestone demo.”
