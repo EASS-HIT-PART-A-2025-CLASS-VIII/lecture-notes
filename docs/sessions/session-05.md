@@ -1,34 +1,34 @@
-# Session 05 – Adding Persistence with SQLite
+# Session 05 – Movie Service Persistence with SQLite
 
 - **Date:** Monday, Dec 1, 2025
-- **Theme:** Replace the in-memory dictionary with a lightweight SQLite database and prepare for user interfaces.
+- **Theme:** Turn the in-memory demo into a small Movie Recommendation backend powered by SQLite so it is ready for a frontend and recommendation logic in later sessions.
 
 ## Learning Objectives
-- Describe why persistent storage is required in most applications.
-- Integrate SQLModel with FastAPI to store data in SQLite.
-- Adjust automated tests to work with a database-backed repository.
+- Model movies and user ratings with SQLModel and SQLite.
+- Provide REST endpoints for browsing movies and recording ratings.
+- Seed the database with starter data that later sessions (Streamlit UI, Redis caching, ALS) will build on.
+- Adjust automated tests to validate movie and rating behaviour.
 
 ## Agenda
 | Segment | Duration | Format | Focus |
 | --- | --- | --- | --- |
-| Warm start & EX1 mini demos | 15 min | Student lightning talks | Share working CRUD endpoints and lessons learned |
-| Persistence primer | 20 min | Talk + sketching | Tables, rows, primary keys, when to migrate |
-| Architecture mini-lesson | 10 min | Talk | Separating API layer and data layer |
-| AWS module check-in | 5 min | Discussion | Confirm Compute module submissions and announce Storage module timeline |
-| Lab 1 | 45 min | Guided coding | Add SQLModel and wire FastAPI to SQLite |
+| Warm start & EX1 mini demos | 15 min | Student lightning talks | Show CRUD progress and share blockers |
+| Persistence primer | 20 min | Talk + sketching | Why movies + ratings need relational tables |
+| Architecture mini-lesson | 10 min | Talk | API layer vs. data layer vs. upcoming recommendation logic |
+| AWS module check-in | 5 min | Discussion | Confirm Compute module progress; remind Storage soft deadline (Dec 9) |
+| Lab 1 | 45 min | Guided coding | Build `Movie` + `Rating` tables, seed sample catalog |
 | Break | 10 min | — | |
-| Lab 2 | 45 min | Guided coding | Update tests and cover new CRUD paths |
-| EX2 announcement | 10 min | Talk | Explain the upcoming frontend assignment |
+| Lab 2 | 45 min | Guided coding | Implement endpoints, rating aggregation, and tests |
+| EX2 announcement | 10 min | Talk | Preview the Movie UI build in next session |
 
-## Teaching Script – Why Persistence Matters
-1. Ask: “What happens to our `ITEMS` dictionary if we restart the server?” Let students respond.
-2. Summarize: “In-memory data disappears. Users expect their work to stay. We need storage on disk.”
-3. Introduce SQLite as “a single file database that ships with Python—perfect for class projects.”
-4. Explain SQLModel: “It combines SQLAlchemy and pydantic to give us typed models and automatic table creation.”
-5. Draw a mini diagram on the board:
-   - Request → FastAPI route → Repository → Database.
-6. Set expectations: “By the end of today, your API will persist items across restarts and your tests will run against a temporary database.”
-7. Announce the AWS Academy **Storage** module plan: “Start the Storage module this week so it’s finished by **Tuesday, Dec 9, 2025**. The hard cutoff for all AWS modules is **Tuesday, Dec 16, 2025**—upload your completion screenshots to Canvas just like you did for Compute.”
+## Teaching Script – Why Persistence Matters for Movies
+1. Start with the problem statement: “We want a movie recommendation API that remembers titles, genres, and student ratings even after a restart.”
+2. Ask: “If we reboot the server, what happens to our in-memory movies list?” Let students observe the data loss.
+3. Introduce SQLite as “a lightweight database that keeps our catalog on disk—ideal for laptops and class projects.”
+4. Explain SQLModel: “It gives us typed models for movies/ratings and creates tables automatically.”
+5. Draw the flow: Request → FastAPI route → Repository → SQLite tables → (later) Redis cache/ALS.
+6. Set expectations: “By the end of today, we’ll have `/movies`, `/movies/{id}`, `/ratings`, and `/movies/top` backed by SQLite with starter data.”
+7. Remind students about AWS pacing: finish the **Storage** module by **Tuesday, Dec 9, 2025** so the **Tue Dec 16** hard deadline is easy.
 
 ## Part B – Hands-on Lab 1 (45 Minutes)
 ### Install Packages
@@ -42,9 +42,12 @@ mkdir -p app
 Create `app/db.py`:
 ```python
 from contextlib import contextmanager
+from pathlib import Path
+from typing import Iterable
+
 from sqlmodel import SQLModel, create_engine, Session
 
-DATABASE_URL = "sqlite:///./items.db"
+DATABASE_URL = "sqlite:///./movies.db"
 engine = create_engine(
     DATABASE_URL,
     echo=False,
@@ -52,9 +55,12 @@ engine = create_engine(
 )
 
 
-def init_db() -> None:
-    """Create tables if they do not already exist."""
+def init_db(seed_fn: Iterable[dict] | None = None) -> None:
+    """Create tables and optionally seed starter movies."""
     SQLModel.metadata.create_all(engine)
+    if seed_fn:
+        with Session(engine) as session:
+            seed_fn(session)
 
 
 @contextmanager
@@ -74,98 +80,140 @@ def get_session() -> Session:
 ### Models (`app/models.py`)
 Create `app/models.py`:
 ```python
+from datetime import datetime
 from sqlmodel import Field, SQLModel
 
 
-class ItemCreate(SQLModel):
-    name: str
-    quantity: int
+class MovieCreate(SQLModel):
+    title: str
+    year: int
+    genre: str
 
 
-class ItemUpdate(SQLModel):
-    name: str | None = None
-    quantity: int | None = None
-
-
-class ItemRead(ItemCreate):
+class MovieRead(MovieCreate):
     id: int
+    average_rating: float | None = None
 
 
-class ItemRow(SQLModel, table=True):
+class RatingCreate(SQLModel):
+    movie_id: int
+    user_id: int
+    score: int = Field(ge=1, le=5)
+
+
+class MovieRow(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    name: str
-    quantity: int
+    title: str
+    year: int
+    genre: str
+
+
+class RatingRow(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    movie_id: int = Field(foreign_key="movierow.id")
+    user_id: int
+    score: int
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 ```
 
 ### Repository (`app/repository.py`)
 Create `app/repository.py`:
 ```python
 from collections.abc import Sequence
+from statistics import mean
+from typing import Optional
+
 from sqlmodel import select
 
 from app.db import get_session
-from app.models import ItemCreate, ItemRead, ItemRow, ItemUpdate
+from app.models import (
+    MovieCreate,
+    MovieRead,
+    MovieRow,
+    RatingCreate,
+    RatingRow,
+)
 
 
-def create_item(payload: ItemCreate) -> ItemRead:
+def seed_movies(session) -> None:
+    if session.exec(select(MovieRow)).first():
+        return
+    starter_movies = [
+        MovieRow(title="Inception", year=2010, genre="Sci-Fi"),
+        MovieRow(title="The Matrix", year=1999, genre="Sci-Fi"),
+        MovieRow(title="The Godfather", year=1972, genre="Crime"),
+        MovieRow(title="Spirited Away", year=2001, genre="Animation"),
+        MovieRow(title="Black Panther", year=2018, genre="Action"),
+    ]
+    session.add_all(starter_movies)
+    session.commit()
+
+
+def list_movies() -> list[MovieRead]:
     with get_session() as session:
-        row = ItemRow.model_validate(payload)
-        session.add(row)
-        session.flush()  # populates row.id
-        return ItemRead.model_validate(row)
+        rows = session.exec(select(MovieRow)).all()
+        return [MovieRead.model_validate(row) for row in rows]
 
 
-def list_items() -> Sequence[ItemRead]:
+def get_movie(movie_id: int) -> Optional[MovieRead]:
     with get_session() as session:
-        rows = session.exec(select(ItemRow)).all()
-        return [ItemRead.model_validate(row) for row in rows]
+        row = session.get(MovieRow, movie_id)
+        return MovieRead.model_validate(row) if row else None
 
 
-def get_item(item_id: int) -> ItemRead | None:
+def create_movie(payload: MovieCreate) -> MovieRead:
     with get_session() as session:
-        row = session.get(ItemRow, item_id)
-        return ItemRead.model_validate(row) if row else None
-
-
-def update_item(item_id: int, payload: ItemUpdate) -> ItemRead | None:
-    with get_session() as session:
-        row = session.get(ItemRow, item_id)
-        if not row:
-            return None
-        if payload.name is not None:
-            row.name = payload.name
-        if payload.quantity is not None:
-            row.quantity = payload.quantity
+        row = MovieRow.model_validate(payload)
         session.add(row)
         session.flush()
-        return ItemRead.model_validate(row)
+        return MovieRead.model_validate(row)
 
 
-def delete_item(item_id: int) -> bool:
+def add_rating(payload: RatingCreate) -> None:
     with get_session() as session:
-        row = session.get(ItemRow, item_id)
-        if not row:
-            return False
-        session.delete(row)
-        session.flush()
-        return True
+        movie = session.get(MovieRow, payload.movie_id)
+        if movie is None:
+            raise ValueError("movie not found")
+        session.add(RatingRow.model_validate(payload))
+
+
+def top_movies(limit: int = 5) -> list[MovieRead]:
+    with get_session() as session:
+        movies = session.exec(select(MovieRow)).all()
+        enriched: list[MovieRead] = []
+        for movie in movies:
+            ratings = session.exec(
+                select(RatingRow).where(RatingRow.movie_id == movie.id)
+            ).all()
+            avg = mean([r.score for r in ratings]) if ratings else None
+            enriched.append(
+                MovieRead(
+                    id=movie.id,
+                    title=movie.title,
+                    year=movie.year,
+                    genre=movie.genre,
+                    average_rating=avg,
+                )
+            )
+        enriched.sort(key=lambda m: (m.average_rating or 0), reverse=True)
+        return enriched[:limit]
 ```
 
 ### Update FastAPI (`app/main.py`)
-Replace the existing in-memory logic with:
+Replace the in-memory logic with a movie-focused API:
 ```python
 from fastapi import FastAPI, HTTPException
 
 from app.db import init_db
 from app import repository
-from app.models import ItemCreate, ItemRead, ItemUpdate
+from app.models import MovieCreate, MovieRead, RatingCreate
 
-app = FastAPI(title="Items Service", version="0.2.0")
+app = FastAPI(title="Movie Service", version="0.3.0")
 
 
 @app.on_event("startup")
 def startup() -> None:
-    init_db()
+    init_db(seed_fn=repository.seed_movies)
 
 
 @app.get("/health")
@@ -173,51 +221,51 @@ def health_check() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.post("/items", response_model=ItemRead, status_code=201)
-def create_item(payload: ItemCreate) -> ItemRead:
-    return repository.create_item(payload)
+@app.get("/movies", response_model=list[MovieRead])
+def get_movies() -> list[MovieRead]:
+    return repository.list_movies()
 
 
-@app.get("/items", response_model=list[ItemRead])
-def list_items() -> list[ItemRead]:
-    return list(repository.list_items())
+@app.get("/movies/{movie_id}", response_model=MovieRead)
+def get_movie(movie_id: int) -> MovieRead:
+    movie = repository.get_movie(movie_id)
+    if movie is None:
+        raise HTTPException(status_code=404, detail="Movie not found")
+    return movie
 
 
-@app.get("/items/{item_id}", response_model=ItemRead)
-def read_item(item_id: int) -> ItemRead:
-    item = repository.get_item(item_id)
-    if item is None:
-        raise HTTPException(status_code=404, detail="Item not found")
-    return item
+@app.post("/movies", response_model=MovieRead, status_code=201)
+def create_movie(payload: MovieCreate) -> MovieRead:
+    return repository.create_movie(payload)
 
 
-@app.put("/items/{item_id}", response_model=ItemRead)
-def replace_item(item_id: int, payload: ItemCreate) -> ItemRead:
-    updated = repository.update_item(item_id, ItemUpdate(**payload.model_dump()))
-    if updated is None:
-        raise HTTPException(status_code=404, detail="Item not found")
-    return updated
+@app.post("/ratings", status_code=204)
+def create_rating(payload: RatingCreate) -> None:
+    try:
+        repository.add_rating(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@app.patch("/items/{item_id}", response_model=ItemRead)
-def patch_item(item_id: int, payload: ItemUpdate) -> ItemRead:
-    updated = repository.update_item(item_id, payload)
-    if updated is None:
-        raise HTTPException(status_code=404, detail="Item not found")
-    return updated
-
-
-@app.delete("/items/{item_id}", status_code=204)
-def remove_item(item_id: int) -> None:
-    deleted = repository.delete_item(item_id)
-    if not deleted:
-        raise HTTPException(status_code=404, detail="Item not found")
+@app.get("/movies/top", response_model=list[MovieRead])
+def get_top_movies(limit: int = 5) -> list[MovieRead]:
+    return repository.top_movies(limit=limit)
 ```
 
 ### Verify Persistence
 - Run `uv run uvicorn app.main:app --reload`.
-- Create an item, stop the server, start again, and fetch the item. It should still exist.
+- Visit `http://localhost:8000/movies` to confirm the seeded catalogue.
+- Add a rating:
+  ```bash
+  curl -X POST http://localhost:8000/ratings     -H "Content-Type: application/json"     -d '{"movie_id": 1, "user_id": 42, "score": 5}'
+  ```
+- Retrieve top movies:
+  ```bash
+  curl "http://localhost:8000/movies/top?limit=3"
+  ```
+- Stop the server, restart, and check the data still exists.
 
+## Part C – Hands-on Lab 2 (45 Minutes)
 ## Part C – Hands-on Lab 2 (45 Minutes)
 ### Test Fixtures (`tests/conftest.py`)
 Add:

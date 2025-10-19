@@ -62,6 +62,22 @@ async def tool_create_item(
     }
 ```
 
+### Start the API (if not already running)
+```bash
+uv run uvicorn app.main:app --reload
+```
+Leave this terminal running while you test the tool endpoint.
+
+### Obtain an Editor Token (Session 11 auth)
+In a second terminal, request a JWT for the `teacher` role and export it for reuse:
+```bash
+curl -X POST http://localhost:8000/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=teacher&password=classroom"
+
+export TOKEN="<paste-access-token-here>"
+```
+
 ### Documentation Block
 Encourage instructors to paste the following example into `docs/service-contract.md`:
 ```markdown
@@ -110,6 +126,29 @@ curl -X POST http://localhost:8000/tool/create-item \
 ```
 Show how deterministic responses make it easy to parse results.
 
+Optional LM Studio script (save as `scripts/ask_tool.py`):
+```python
+import httpx
+
+payload = {
+    "model": "local-llm",
+    "messages": [
+        {
+            "role": "user",
+            "content": "Should I call POST /tool/create-item with name=Notebook?"
+        }
+    ],
+}
+
+response = httpx.post("http://localhost:1234/v1/chat/completions", json=payload, timeout=30)
+print(response.json()["choices"][0]["message"]["content"])
+```
+Run it with:
+```bash
+uv run python scripts/ask_tool.py
+```
+Adjust the LM Studio URL/model as needed.
+
 ## Part C – Hands-on Lab 2 (45 Minutes)
 ### Readiness Checklist
  Provide teams with the following list and check off items together:
@@ -120,6 +159,22 @@ Show how deterministic responses make it easy to parse results.
 - Advanced feature works end-to-end (async job, auth, or observability).
 - Optional: metrics endpoint or structured logs accessible through Compose.
 - AWS Academy certificates (Compute/Storage/Databases) were uploaded by **Tue Dec 16, 2025** (or the make-up plan is in motion).
+- Verify the tool endpoint directly:
+  ```bash
+  curl -X POST http://localhost:8000/tool/create-item \\
+    -H "Content-Type: application/json" \\
+    -H "Authorization: Bearer $TOKEN" \\
+    -d '{\\"payload\\": {\\"name\\": \"Dry run\", \"quantity\": 1}}'
+  ```
+- If using Docker Compose, run a full-system check:
+  ```bash
+  docker compose up --build
+  curl -X POST http://localhost:8080/tool/create-item \\
+    -H "Content-Type: application/json" \\
+    -H "Authorization: Bearer $TOKEN" \\
+    -d '{\\"payload\\": {\\"name\\": \"Compose check\", \"quantity\": 1}}'
+  docker compose down
+  ```
 
 ### Demo Rehearsal
 - Each team runs through a three-minute milestone presentation:
@@ -141,6 +196,8 @@ Show how deterministic responses make it easy to parse results.
 - If the tool endpoint requires authentication, remind teams to create a dedicated API token user or to explain how to obtain a token in the README.
 - When `curl` fails with 422, check whether the JSON used the `payload` wrapper (because `embed=True`).
 - If Compose logs show stale data, remind teams to prune Docker volumes (`docker compose down -v`) and restart.
+- If `$TOKEN` is empty, rerun the login `curl` command and export the value again.
+- When LM Studio is not running, start it before executing `scripts/ask_tool.py` or skip the optional demo.
 
 ## Student Success Criteria
 - `/tool/create-item` returns deterministic JSON for both success and error cases.
