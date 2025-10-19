@@ -8,9 +8,8 @@ This repository contains the fully scripted 12-session plan for the **EASS 8 –
 git clone https://github.com/EASS-HIT-PART-A-2025-CLASS-VIII/lecture-notes.git
 cd lecture-notes
 
-# Optional: serve the notes with mkdocs
-pip install mkdocs-material
-mkdocs serve
+# Optional: serve the notes with MkDocs (uv grabs mkdocs + theme on demand)
+uv tool run --with mkdocs-material mkdocs serve
 ```
 
 Key documents:

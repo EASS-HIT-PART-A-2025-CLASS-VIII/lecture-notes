@@ -97,3 +97,4 @@ _*
 
 # Build artifacts
 .build/
+/site/

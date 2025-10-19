@@ -10,7 +10,7 @@ Welcome! This site hosts the 12-week plan for the EASS course reboot. Everything
 - [Course schedule by session](#course-schedule)
 - [Exercise lineup and deadlines](exercises.md)
 - [AWS Academy Cloud Foundations modules](exercises.md#aws-academy-cloud-foundations-modules)
-- [Legacy slide archives](../lectures/archive/README.md)
+- [Legacy slide archives](https://github.com/EASS-HIT-PART-A-2025-CLASS-VIII/lecture-notes/tree/main/lectures/archive)
 - [Troubleshooting tips](troubleshooting.md)
 
 ## Course Schedule

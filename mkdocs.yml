@@ -1,4 +1,21 @@
-site_name: EASS-2022-Part-A
+site_name: EASS 8 – Engineering at Scale
 theme:
   name: material
 
+nav:
+  - Home: index.md
+  - Exercises: exercises.md
+  - Sessions:
+      - Session 01 – Kickoff and Environment Setup: sessions/session-01.md
+      - Session 02 – Introduction to HTTP and REST: sessions/session-02.md
+      - Session 03 – FastAPI Fundamentals: sessions/session-03.md
+      - Session 04 – Docker Basics and Reverse Proxy Demo: sessions/session-04.md
+      - Session 05 – Movie Service Persistence with SQLite: sessions/session-05.md
+      - Session 06 – Movie Dashboards with Streamlit & React: sessions/session-06.md
+      - Session 07 – Testing, Logging, and Profiling Basics: sessions/session-07.md
+      - Session 08 – Working with AI Coding Assistants: sessions/session-08.md
+      - Session 09 – Async Recommendation Refresh: sessions/session-09.md
+      - Session 10 – Docker Compose, Redis, and Service Contracts: sessions/session-10.md
+      - Session 11 – Security Foundations: sessions/session-11.md
+      - Session 12 – Tool-Friendly APIs and Final Prep: sessions/session-12.md
+  - Troubleshooting: troubleshooting.md
