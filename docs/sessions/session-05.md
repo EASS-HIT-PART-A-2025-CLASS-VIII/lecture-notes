@@ -30,6 +30,22 @@
 6. Set expectations: “By the end of today, we’ll have `/movies`, `/movies/{id}`, `/ratings`, and `/movies/top` backed by SQLite with starter data.”
 7. Remind students about AWS pacing: finish the **Storage** module by **Tuesday, Dec 9, 2025** so the **Tue Dec 16** hard deadline is easy.
 
+```
+FastAPI endpoint (/movies or /ratings)
+        |
+        v
+ Repository layer (session 05 code)
+        |
+        v
+   SQLite engine (movies.db on disk)
+        |
+        v
+Downstream features:
+  - Redis cache (Session 10)
+  - Async recommender (Session 09)
+  - Streamlit/React UI (Session 06)
+```
+
 ## Part B – Hands-on Lab 1 (45 Minutes)
 ### Install Packages
 ```bash

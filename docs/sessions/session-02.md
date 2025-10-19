@@ -19,6 +19,23 @@
 | Lab 2 | 45 min | Guided practice | Explore requests with `.http` files and retry helpers |
 | EX1 briefing | 10 min | Talk + Q&A | Share scope, rubric, Tuesday deadline |
 
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client as Browser/REST Client
+    participant API as FastAPI (Session 03+)
+    participant DB as SQLite (Session 05+)
+    Client->>API: GET /movies
+    API->>DB: SELECT * FROM movies
+    DB-->>API: Rows
+    API-->>Client: 200 OK + JSON list
+    Client->>API: POST /ratings {movie_id, score}
+    API->>API: Validate body (pydantic)
+    API->>DB: INSERT INTO ratings
+    DB-->>API: Insert ok
+    API-->>Client: 201 Created + rating JSON
+```
+
 ## Teaching Script – HTTP Fundamentals
 1. Draw a simple diagram on the board: laptop → internet → server. Label “Client” and “API”.
 2. Explain the anatomy of a request: “Method (GET, POST), URL, headers (metadata), body (JSON).”

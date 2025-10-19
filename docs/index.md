@@ -6,6 +6,16 @@ Welcome! This site hosts the 12-week plan for the EASS course reboot. Everything
 - Each meeting has **45 min theory** + **45 min hands-on build** + **45 min practice/extension**.
 - Exercises are assigned in class and always due on a **Tuesday** to give students time after the weekend.
 
+> **Heads-up from Andrej Karpathy**  
+> - Sleep beats all-nighters; aim for ~7½ hours before big work.  
+> - Meet the material early and often—short sessions across days stick best.  
+> - Try problems without notes so you know you can re-create the steps.  
+> - Teach someone else what you learned; explaining makes it click.  
+> - Visit office hours and sessions even if you only have small questions.  
+> - Stop studying alone near the end—compare notes and fill gaps with peers.  
+> - Never hand in early on tests; use every minute to check for silly misses.  
+> - Grades matter, but real projects and references matter more—build things outside class.
+
 ## Quick Links
 - [Course schedule by session](#course-schedule)
 - [Exercise lineup and deadlines](exercises.md)

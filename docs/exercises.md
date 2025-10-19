@@ -6,6 +6,7 @@ Every project is designed for undergraduates who are new to full-stack developme
 - **Assigned:** Monday, Nov 10, 2025
 - **Due:** Tuesday, Dec 2, 2025 at 23:59 (Israel time)
 - **Goal:** Build a FastAPI movie service that supports create/read/update/delete operations and records ratings.
+- **Sessions to revisit:** [Session 02 – Introduction to HTTP and REST](sessions/session-02.md), [Session 03 – FastAPI Fundamentals](sessions/session-03.md), [Session 04 – Docker Basics and Reverse Proxy Demo](sessions/session-04.md).
 - **Required Features:**
   - Endpoints: `POST /movies`, `GET /movies`, `GET /movies/{id}`, `PUT /movies/{id}`, `DELETE /movies/{id}`, plus `POST /ratings` for new scores.
   - Validation via `pydantic` models (title/year/genre, rating score 1–5).
@@ -18,6 +19,7 @@ Every project is designed for undergraduates who are new to full-stack developme
 - **Assigned:** Monday, Dec 1, 2025
 - **Due:** Tuesday, Dec 23, 2025 at 23:59 (Israel time)
 - **Goal:** Create a movie dashboard UI that interacts with the EX1 API (list catalogue, submit ratings).
+- **Sessions to revisit:** [Session 05 – Movie Service Persistence with SQLite](sessions/session-05.md), [Session 06 – Movie Dashboards with Streamlit & React](sessions/session-06.md), [Session 07 – Testing, Logging, and Profiling Basics](sessions/session-07.md).
 - **Choices:**
   - Streamlit (fast path, Python-based).
   - Minimal React app (JavaScript-based) using Vite.
@@ -35,6 +37,7 @@ Every project is designed for undergraduates who are new to full-stack developme
 - **Milestone Demo:** Tuesday, Jan 20, 2026 (in-class show-and-tell)
 - **Final Due:** Tuesday, Feb 10, 2026 at 23:59 (Israel time)
 - **Goal:** Deliver a multi-service stack using Docker Compose and one advanced capability.
+- **Sessions to revisit:** [Session 08 – Working with AI Coding Assistants](sessions/session-08.md), [Session 09 – Async Recommendation Refresh](sessions/session-09.md), [Session 10 – Docker Compose, Redis, and Service Contracts](sessions/session-10.md), [Session 11 – Security Foundations](sessions/session-11.md), [Session 12 – Tool-Friendly APIs and Final Prep](sessions/session-12.md).
 - **Required Services:** at least the FastAPI API and an nginx reverse proxy. Optional additional services include databases, frontends, or monitoring tools.
 - **Advanced Feature Choices (pick one):**
   1. Asynchronous recommendation rebuild job (Session 09).
