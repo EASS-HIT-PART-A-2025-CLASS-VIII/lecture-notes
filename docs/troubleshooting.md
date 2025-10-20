@@ -121,6 +121,26 @@ docker plugin install compose
 
 ---
 
+### vLLM on macOS is very slow or fails to pull
+
+**Context:** vLLM’s official image (`vllm/vllm-openai:latest`) targets Linux/amd64 and is GPU-optimized. On Apple Silicon it runs under emulation without GPU and can be slow.
+
+**Fixes / Tips:**
+```bash
+# Force amd64 platform and use a tiny model to reduce memory/CPU load
+docker run --rm -it \
+  --platform=linux/amd64 \
+  -p 8000:8000 \
+  vllm/vllm-openai:latest \
+  --host 0.0.0.0 --port 8000 \
+  --model TinyLlama/TinyLlama-1.1B-Chat-v1.0
+```
+- Prefer LM Studio for Apple Silicon if you only need a local test endpoint.
+- If the image pull is too large for the network, skip vLLM for the lab and use LM Studio instead (Session 08).
+- For gated models, set `-e HF_TOKEN=...` and mount `~/.cache/huggingface` into the container to avoid repeat downloads.
+
+---
+
 ### "Error: database is locked"
 
 **Symptom:** SQLite file locked during concurrent access

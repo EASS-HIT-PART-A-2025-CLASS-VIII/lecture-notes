@@ -31,7 +31,7 @@ Welcome! This site hosts the 12-week plan for the EASS course reboot. Everything
 5. [Session 05 – Movie Service Persistence with SQLite](sessions/session-05.md)
 6. [Session 06 – Movie Dashboards with Streamlit & React](sessions/session-06.md)
 7. [Session 07 – Testing, Logging, and Profiling Basics](sessions/session-07.md)
-8. [Session 08 – Working with AI Coding Assistants](sessions/session-08.md)
+8. [Session 08 – Working with AI Coding Assistants (LM Studio or vLLM)](sessions/session-08.md)
 9. [Session 09 – Async Recommendation Refresh](sessions/session-09.md)
 10. [Session 10 – Docker Compose, Redis, and Service Contracts](sessions/session-10.md)
 11. [Session 11 – Security Foundations](sessions/session-11.md)

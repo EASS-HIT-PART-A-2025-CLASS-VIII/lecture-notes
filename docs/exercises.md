@@ -47,7 +47,7 @@ Every project is designed for undergraduates who are new to full-stack developme
   - Working Compose stack (`docker compose up --build` runs without errors) with API, Redis cache, and nginx proxy.
   - Automated tests covering the advanced feature.
   - README including architecture diagram or description, environment variables, and AI usage notes.
-  - Optional: expose a tool-friendly endpoint and demonstrate calling it from a script or local LLM.
+  - Optional: expose a tool-friendly endpoint and demonstrate calling it from a script or local LLM (Session 08 covers LM Studio + vLLM setup).
 - **Rubric (100 pts):** multi-service architecture 25, advanced feature depth 30, reliability/resilience 15, tests 15, documentation 15.
 
 

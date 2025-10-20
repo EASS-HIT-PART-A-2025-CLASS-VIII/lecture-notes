@@ -16,7 +16,7 @@
 | Prompt patterns | 20 min | Talk + live examples | Spec-first, tests-first, refactor requests |
 | Lab 1 | 45 min | Guided coding | Use AI to extend the API, then review and test |
 | Break | 10 min | — | |
-| Lab 2 | 45 min | Guided coding | Call LM Studio (local LLM) from Python |
+| Lab 2 | 45 min | Guided coding | Call a local LLM (LM Studio or vLLM) from Python |
 | Retrospective | 10 min | Discussion | Share wins, blockers, and next steps |
 
 ## Teaching Script – AI Ground Rules
@@ -83,9 +83,40 @@ Address any numerical edge cases before moving on.
 
 
 ## Part C – Hands-on Lab 2 (45 Minutes) – Local LLM Call
-### Start LM Studio
+You can use either LM Studio or vLLM (Docker) on macOS. LM Studio is the fastest path on Apple Silicon; vLLM via Docker also works on CPU for tiny models.
+
+### Option A – Start LM Studio
 - Launch LM Studio and load a model that supports chat completions.
 - Note the local API URL (commonly `http://localhost:1234/v1`).
+
+### Option B – Start vLLM via Docker (Mac-friendly, CPU)
+Run an OpenAI-compatible vLLM server with a tiny model:
+```bash
+docker run --rm -it \
+  --platform=linux/amd64 \
+  -p 8000:8000 \
+  -v "$HOME/.cache/huggingface:/root/.cache/huggingface" \
+  vllm/vllm-openai:latest \
+  --host 0.0.0.0 \
+  --port 8000 \
+  --model TinyLlama/TinyLlama-1.1B-Chat-v1.0 \
+  --max-model-len 2048
+```
+Notes:
+- Apple Silicon runs the `linux/amd64` image under emulation, so expect slow but workable CPU inference. Keep prompts short and pick small models (≤1–2B).
+- Public HF models like `TinyLlama/TinyLlama-1.1B-Chat-v1.0` do not require a token. For gated models, add `-e HF_TOKEN=...`.
+- The server exposes `http://localhost:8000/v1` with the OpenAI Chat Completions API.
+
+Quick smoke test:
+```bash
+curl -s http://localhost:8000/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{
+        "model": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+        "messages": [{"role":"user","content":"Say hi in one short sentence."}],
+        "temperature": 0.2
+      }' | jq '.choices[0].message.content'
+```
 
 ### Create `scripts/query_llm.py` (reuse from Session 08)
 Install dependency if needed:
@@ -95,8 +126,8 @@ uv add httpx
 ```python
 import httpx
 
-MODEL = "local-llm"
-ENDPOINT = "http://localhost:1234/v1/chat/completions"
+MODEL = "local-llm"  # For LM Studio, keep as-is
+ENDPOINT = "http://localhost:1234/v1/chat/completions"  # LM Studio default
 
 PROMPT = """
 Write a FastAPI route that returns a JSON response with status: ok when /health is requested.
@@ -118,11 +149,72 @@ message = response.json()["choices"][0]["message"]["content"]
 print(message)
 ```
 
+If you chose vLLM, set:
+```python
+MODEL = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+ENDPOINT = "http://localhost:8000/v1/chat/completions"
+```
+
+### Optional – Use the OpenAI client with vLLM
+The OpenAI Python client works against vLLM’s OpenAI-compatible server.
+```bash
+uv add openai
+```
+```python
+from openai import OpenAI
+
+client = OpenAI(base_url="http://localhost:8000/v1", api_key="not-needed")
+
+resp = client.chat.completions.create(
+    model="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+    messages=[
+        {"role": "system", "content": "You help write concise FastAPI endpoints."},
+        {"role": "user", "content": "Write an async FastAPI /health route that returns status: ok."},
+    ],
+    temperature=0.2,
+)
+print(resp.choices[0].message.content)
+```
+
 ### Run the Script
 ```bash
 uv run python scripts/query_llm.py
 ```
 Copy the output into a scratch file, review it, and discuss what needs to change before using it in production (e.g., missing validation, untested code).
+
+### Optional – Add a FastAPI endpoint that calls vLLM
+Keep this tiny and deterministic. Example in `app/main.py`:
+```python
+import os
+from fastapi import Body
+from pydantic import BaseModel
+from openai import OpenAI
+
+LLM_BASE_URL = os.getenv("LLM_BASE_URL", "http://localhost:8000/v1")
+LLM_MODEL = os.getenv("LLM_MODEL", "TinyLlama/TinyLlama-1.1B-Chat-v1.0")
+client = OpenAI(base_url=LLM_BASE_URL, api_key=os.getenv("LLM_API_KEY", "not-needed"))
+
+class SummarizeIn(BaseModel):
+    text: str
+
+@app.post("/ai/summarize")
+async def summarize(inp: SummarizeIn = Body(...)) -> dict[str, str]:
+    r = client.chat.completions.create(
+        model=LLM_MODEL,
+        messages=[
+            {"role": "system", "content": "Return a one-sentence summary."},
+            {"role": "user", "content": inp.text},
+        ],
+        temperature=0.1,
+    )
+    return {"status": "ok", "summary": r.choices[0].message.content}
+```
+Test:
+```bash
+curl -s -X POST http://localhost:8000/ai/summarize \
+  -H 'Content-Type: application/json' \
+  -d '{"text":"The API returns health and simple movie data."}' | jq
+```
 
 ### Group Discussion
 - When would you reject AI output completely?
@@ -135,6 +227,7 @@ Copy the output into a scratch file, review it, and discuss what needs to change
 ## Troubleshooting
 - If the AI tool suggests invalid Python, ask it explicitly for syntax-conforming code.
 - For LM Studio connection errors, confirm the server is running and the endpoint URL is correct.
+- For vLLM on macOS, use very small models and expect slow CPU inference. If the Docker pull is too large/slow, prefer LM Studio for this lab.
 - Remind students to disable auto-commit features if their IDEs offer them; commits must remain intentional.
 
 ## Student Success Criteria

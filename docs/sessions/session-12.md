@@ -13,7 +13,7 @@
 | --- | --- | --- | --- |
 | Warm-up | 10 min | Discussion | “What finishing touches did you add to EX3 over the weekend?” |
 | Tool-friendly API talk | 25 min | Talk + examples | Deterministic responses, idempotency, explicit error codes |
-| Prompt-to-tool demo | 20 min | Live coding | Call an API endpoint from LM Studio or curl |
+| Prompt-to-tool demo | 20 min | Live coding | Call an API endpoint from LM Studio or vLLM (Docker) |
 | Lab 1 | 45 min | Guided coding | Create `/tool/recommend-movie` with clear schema |
 | Break | 10 min | — | |
 | Lab 2 | 45 min | Guided practice | Run readiness checklist, update docs, rehearse demos |
@@ -148,6 +148,8 @@ uv run python scripts/ask_tool.py
 ```
 Adjust the LM Studio URL/model as needed.
 
+Optional vLLM note: If you started vLLM via Docker in Session 08, point the client to `http://localhost:8000/v1` and set `model` to the tiny model you launched (for example, `TinyLlama/TinyLlama-1.1B-Chat-v1.0`). The OpenAI Python client also works by supplying `base_url` and a dummy `api_key`.
+
 ## Part C – Hands-on Lab 2 (45 Minutes)
 ### Readiness Checklist
  Provide teams with the following list and check off items together:
@@ -192,6 +194,7 @@ Adjust the LM Studio URL/model as needed.
 - If Compose logs show stale data, remind teams to prune Docker volumes (`docker compose down -v`) and restart.
 - If `$TOKEN` is empty, rerun the login `curl` command and export the value again.
 - When LM Studio is not running, start it before executing `scripts/ask_tool.py` or skip the optional demo.
+- For vLLM on macOS, keep models tiny and prompts short; see Session 08 for Docker startup commands.
 
 ## Student Success Criteria
 - `/tool/recommend-movie` returns deterministic JSON for both success and error cases.
