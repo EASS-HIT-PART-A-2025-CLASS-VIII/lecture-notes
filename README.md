@@ -1,16 +1,15 @@
-# Engineering at Scale – Course Materials
+# EASS – Engineering of Advanced Software Solutions (Course Materials)
 
-This repository contains the fully scripted 12-session plan for the **EASS 8 – Engineering at Scale** course.  Each class blends 45 minutes of theory with two 45-minute hands-on blocks, and the entire arc follows a single project: building a movie recommendation platform with FastAPI, SQLModel, Streamlit/React, Redis, and Docker.
+This repository contains the fully scripted 12-session plan for the **EASS 8 – Engineering of Advanced Software Solutions** course. Each class blends 45 minutes of theory with two 45-minute hands-on blocks, and the entire arc follows a single project: building a movie recommendation platform with FastAPI, SQLModel, Streamlit/React, Redis, and Docker.
 
 ## 🚀 Quick Start for Instructors
 
 ```bash
 git clone https://github.com/EASS-HIT-PART-A-2025-CLASS-VIII/lecture-notes.git
 cd lecture-notes
-
-# Optional: serve the notes with MkDocs (uv grabs mkdocs + theme on demand)
-uv tool run --with mkdocs-material mkdocs serve
 ```
+
+Open the `docs/` folder (or load the repo in VS Code) to follow any session directly—no static site build is required.
 
 Key documents:
 

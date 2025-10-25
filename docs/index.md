@@ -1,6 +1,6 @@
-# Engineering at Scale – 12 Session Plan
+# EASS – Engineering of Advanced Software Solutions (12-Session Plan)
 
-Welcome! This site hosts the 12-week plan for the EASS course reboot. Everything is organized around short theory bursts followed by two hands-on blocks so undergrads can follow step by step.
+Welcome! This site hosts the 12-week plan for the EASS (Engineering of Advanced Software Solutions) course reboot. Everything is organized around short theory bursts followed by two hands-on blocks so undergrads can follow step by step.
 
 - Classes meet on **Mondays** from Nov 3, 2025 through Jan 19, 2026.
 - Each meeting has **45 min theory** + **45 min hands-on build** + **45 min practice/extension**.
@@ -20,6 +20,7 @@ Welcome! This site hosts the 12-week plan for the EASS course reboot. Everything
 - [Course schedule by session](#course-schedule)
 - [Exercise lineup and deadlines](exercises.md)
 - [AWS Academy Cloud Foundations modules](exercises.md#aws-academy-cloud-foundations-modules)
+- [Optional MCP Workshop](sessions/optional/mcp.md)
 - [Legacy slide archives](https://github.com/EASS-HIT-PART-A-2025-CLASS-VIII/lecture-notes/tree/main/lectures/archive)
 - [Troubleshooting tips](troubleshooting.md)
 
@@ -36,6 +37,8 @@ Welcome! This site hosts the 12-week plan for the EASS course reboot. Everything
 10. [Session 10 – Docker Compose, Redis, and Service Contracts](sessions/session-10.md)
 11. [Session 11 – Security Foundations](sessions/session-11.md)
 12. [Session 12 – Tool-Friendly APIs and Final Prep](sessions/session-12.md)
+
+**Optional add-on:** [MCP Workshop – Weather MCP Server](sessions/optional/mcp.md) for teams who want to ship MCP-compatible tools after Session 12.
 
 ## Exercises at a Glance
 - **EX1 – Backend Foundations**: assigned Mon Nov 10 · due Tue Dec 2, 2025
