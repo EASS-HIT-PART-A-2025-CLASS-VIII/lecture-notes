@@ -331,4 +331,79 @@ curl "https://registry.modelcontextprotocol.io/v0/servers?search=io.docker.zozo0
 
 ---
 
-Encourage teams to remix this pattern for their movie recommender endpoints so AI assistants can call `/tool/recommend-movie` through MCP just like any other tool.
+## Remixing the Pattern for Movie Recommenders
+Session 12 already has teams harden their REST endpoints (e.g., `/api/recommend-movie`). This workshop is the next logical mile: wrap that same logic in FastMCP so AI assistants can call it deterministically as `/tool/recommend-movie` while human clients still hit the HTTP API. The FastAPI app above shows the coexistence model—tool calls run through the MCP server, while `app.py` keeps your REST surface area alive. In practice:
+
+1. Keep the recommendation core (vector search, collaborative filter, etc.) in a shared module.
+2. Expose it twice—once via FastAPI/JSON just like EX3, and once via `@mcp.tool(name="recommend-movie")`.
+3. Add it to the MCP streamable HTTP mount so connectors (Claude Desktop, Inspector, custom agents) discover it alongside `get_alerts`.
+
+Encourage teams to remix this pattern so every movie recommender squad ships the same contract: an authenticated REST API for humans and `/tool/recommend-movie` for assistants, both powered by the exact same business logic.
+
+### Example End-to-End Flow
+1. A client POSTs to `/api/recommend-movie` with the viewer profile. FastAPI validates payloads and calls the shared recommender module.
+2. Claude (or any MCP-aware assistant) invokes `/tool/recommend-movie` with the same schema. FastMCP calls the exact same shared module and streams the response back through MCP.
+3. Both surfaces log to the same observability hooks, so product teams can compare assistant-initiated traffic vs human traffic without double maintenance.
+
+### Shared Recommendation Core (`services/recommendation.py`)
+```python
+from typing import Sequence
+
+def recommend_movie(user_id: str, liked_titles: Sequence[str], mood: str) -> dict:
+    # Vector search or rules live here; return structured data instead of strings
+    return {
+        "title": "Starship Rescue",
+        "reason": f"Matches {mood} mood and overlaps with {liked_titles[:2]}",
+        "alternatives": ["Nebula Knights", "Mission to Europa"],
+    }
+```
+
+### FastAPI Endpoint (`api.py`)
+```python
+from fastapi import APIRouter
+from pydantic import BaseModel
+from services.recommendation import recommend_movie
+
+router = APIRouter(prefix="/api")
+
+class RecommendRequest(BaseModel):
+    user_id: str
+    liked_titles: list[str]
+    mood: str
+
+@router.post("/recommend-movie")
+def recommend(req: RecommendRequest):
+    return recommend_movie(req.user_id, req.liked_titles, req.mood)
+```
+
+### MCP Tool (`movie_mcp.py`)
+```python
+from mcp.server.fastmcp import FastMCP
+from services.recommendation import recommend_movie
+
+mcp = FastMCP("io.docker.zozo001.movie-mcp")
+
+@mcp.tool(name="recommend-movie")
+async def recommend_tool(user_id: str, liked_titles: list[str], mood: str) -> str:
+    rec = recommend_movie(user_id, liked_titles, mood)
+    return (
+        f"Top pick: {rec['title']} — {rec['reason']}\n"
+        f"Alternatives: {', '.join(rec['alternatives'])}"
+    )
+```
+
+### FastAPI + MCP Bridge (`app.py`)
+```python
+from fastapi import FastAPI
+from api import router as api_router
+from movie_mcp import mcp
+
+app = FastAPI()
+app.include_router(api_router)
+app.mount("/mcp", mcp.streamable_http_app())
+```
+
+Now the exact same recommendation object feeds the REST route and the MCP tool:
+- Humans call `POST /api/recommend-movie`.
+- Assistants call `/tool/recommend-movie` (stdio or HTTP transport).
+- Observatory parity stays aligned, and shipping MCP support becomes an additive change instead of a rewrite.
