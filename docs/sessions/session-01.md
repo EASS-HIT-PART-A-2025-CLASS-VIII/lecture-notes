@@ -10,15 +10,15 @@
 
 ## Before Class – Equipment Check (JiTT)
 Ask students to complete this 5-minute checklist the night before:
-- Run `uv --version`, `git --version`, and `vim --version` (add `code --version` only if you already use VS Code) and paste the outputs in the Discord `#helpdesk` channel using the Problem → Action → Result → Desired format.
-- Note any failures or missing commands so we can triage on arrival.
+- Run `python3 --version` (or `py --version` on Windows), `uv --version`, `git --version`, and `code --version`. Paste the commands _and_ outputs in Discord `#helpdesk` using the **Problem → Action → Result → Desired** template (see below).
+- Note any failures or missing commands so we can triage on arrival; do **not** spend hours debugging alone.
 - This just-in-time teaching checkpoint lets us spend class time on the fun parts instead of long installs.
 
 ## Agenda
 | Segment | Duration | Format | Focus |
 | --- | --- | --- | --- |
 | **PART A – Theory & Motivation** | **45 min** | **Talk + Discussion** | **Course overview, tools landscape, mindset** |
-| Warm welcome | 5 min | Discussion | Names, icebreaker question ("What do you hope to build this year?") |
+| Warm welcome | 5 min | Discussion | Zoom breakouts: one-sentence intros + goals |
 | Course overview | 15 min | Talk | Syllabus, grading (3 exercises), expectations for collaboration and AI usage |
 | Tool belt briefing | 25 min | Talk + quick demos | Why uv, how Git will be used, VS Code essentials, FastAPI for backends, Docker for deployment, LLMs as coding assistants and in projects |
 | **Break** | **10 min** | **—** | **Encourage movement – launch [10-minute timer](https://e.ggtimer.com/10minutes)** |
@@ -44,23 +44,114 @@ Ask students to complete this 5-minute checklist the night before:
 
 ## Lab Quick Reference (Printable)
 
-Use these numbered steps when you call out B# (Part B) or C# (Part C). Every command assumes a Bash-compatible shell (macOS, Linux, or WSL). Windows PowerShell users can substitute `ni` for `touch`.
+Use these numbered steps when you call out B# (Part B) or C# (Part C). Unless otherwise stated, run tools with `uv run …` so you never leave the managed environment.
 
-| Step | Command(s) | Purpose |
-| --- | --- | --- |
-| **B1** | `mkdir hello-uv && cd hello-uv` | Create and enter the project folder. |
-| **B2** | `uv venv --python 3.11`<br>`uv init`<br>`uv add pytest` | Provision an isolated Python, scaffold `pyproject.toml`, and lock `pytest`. |
-| **B3** | `mkdir -p tests`<br>`vim tests/test_math.py` | Create the tests directory and open the starter test file in `vim`. |
-| **B4** | _In vim_ paste:<br>`def test_addition(): ...` (three functions)<br>Then `Esc :wq` | Add the arithmetic test trio; save and exit. |
-| **B5** | `uv run pytest -q` | Run the suite; expect three passing dots. |
-| **B6** | `cat > .gitignore <<'EOF' ... EOF`<br>`git init`<br>`git add .`<br>`git commit -m "chore: bootstrap hello-uv project"` | Ignore virtualenv artefacts, snapshot the initial project. |
-| **C1** | `code .` (or VS Code → **Open Folder**) | Launch VS Code with the project. Install Python, Pylance, GitLens, REST Client, Docker extensions. |
-| **C2** | `ls -la` · `echo "Scratch pad" > notes.txt` · `git status` · `rm notes.txt` | Practice shell navigation, create/delete a file, observe Git status changes. |
-| **C3** | `touch README.md` · `vim README.md` | Create and edit the README with setup and test guidance. |
-| **C4** | `git add README.md`<br>`git commit -m "docs: add project README"` | Stage and commit documentation. |
-| **C5 (Optional)** | `git branch -M main`<br>`git remote add origin git@github.com:EASS-HIT-PART-A-2025-CLASS-VIII/hello-uv-<handle>.git`<br>`git push -u origin main` | Publish to the course GitHub organisation. |
+### Part B – Bootstrap `hello-uv`
+- **B1** – _Create project_:  
+  ```bash
+  mkdir hello-uv && cd hello-uv
+  ```  
+  (Windows PowerShell: `New-Item -ItemType Directory hello-uv; Set-Location hello-uv`)
+- **B2** – _Project scaffold (no activation needed):_  
+  ```bash
+  uv init
+  uv venv --python 3.11
+  uv add pytest
+  ```  
+  Verify with `uv --version` and `uv run python --version`.  
+  If `uv` is missing, install it _before_ running B2:  
+  - macOS/Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh` (or `brew install uv`)  
+  - Windows PowerShell (Admin): `powershell -c "irm https://astral.sh/uv/install.ps1 | iex"`
+- **B3** – _Write starter tests (pick one editor):_  
+  ```bash
+  mkdir -p tests
+  ```
+  - macOS/Linux/WSL: `nano tests/test_math.py`  
+  - VS Code: `code tests/test_math.py`  
+  - PowerShell: `notepad tests\test_math.py`  
+  Paste exactly:  
+  ```python
+  def test_addition():
+      assert 2 + 2 == 4
 
-> Keep this table handy during class. The detailed teaching notes below reference the same B#/C# labels instead of repeating commands inline.
+  def test_subtraction():
+      assert 5 - 3 == 2
+
+  def test_multiplication():
+      assert 3 * 4 == 12
+  ```
+- **B4** – _Run tests:_  
+  ```bash
+  uv run pytest -q
+  ```  
+  Expect three dots and “3 passed”.
+- **B5** – _Create `.gitignore`:_  
+  - Bash/WSL/macOS:  
+    ```bash
+    cat > .gitignore <<'EOF'
+    # Python
+    __pycache__/
+    *.py[cod]
+    *.so
+    .Python
+
+    # Virtual environments
+    .venv/
+    venv/
+    ENV/
+
+    # IDE
+    .vscode/
+    .idea/
+    *.swp
+    *.swo
+
+    # Testing
+    .pytest_cache/
+    .coverage
+    htmlcov/
+
+    # OS
+    .DS_Store
+    Thumbs.db
+
+    # uv
+    .uv/
+
+    # Secrets
+    .env
+    EOF
+    ```
+  - PowerShell (heredoc unsupported): run `notepad .gitignore` or `code .gitignore` and paste the same content.
+- **B6** – _Initial commit:_  
+  ```bash
+  git init
+  git add .
+  git commit -m "chore: bootstrap hello-uv project"
+  git log --oneline
+  ```
+
+### Part C – Editor, Shell, Documentation
+- **C1** – _Open VS Code & extensions:_  
+  `code .` (or VS Code → **Open Folder**). Install Python, Pylance, GitLens, REST Client, Docker. Configure pytest discovery if prompted.
+- **C2** – _Shell reps (choose platform):_  
+  - Bash/WSL/macOS:  
+    `pwd && ls -la && echo "Scratch pad" > notes.txt && git status && rm notes.txt`  
+  - PowerShell:  
+    `Get-Location; Get-ChildItem; "Scratch pad" > notes.txt; git status; Remove-Item notes.txt`
+- **C3** – _README:_  
+  `code README.md` (or `nano` / `notepad`). Use the provided template.
+- **C4** – _Docs commit:_  
+  ```bash
+  git add README.md
+  git commit -m "docs: add project README"
+  ```
+- **C5 (Optional)** – _Publish to GitHub Classroom org:_  
+  ```bash
+  git branch -M main
+  git remote add origin git@github.com:EASS-HIT-PART-A-2025-CLASS-VIII/hello-uv-<handle>.git
+  git push -u origin main
+  ```
 
 ## Talking Script – Course Overview (First 45 Minutes)
 1. **Introduce yourself and the course tone.** "This class is about learning by doing. You will see me live-code and you will copy/paste freely. Questions are always welcome. Trust the process—even if things feel unfamiliar at first, by the end you'll be building real web applications with modern tools."
@@ -77,13 +168,13 @@ Use these numbered steps when you call out B# (Part B) or C# (Part C). Every com
 
 ### Warm Welcome (5 Minutes)
 **Instructor Actions:**
-1. Introduce yourself: name, background, what you're excited about this semester.
-2. Ice breaker question: "What do you hope to build this year?" (Go around the room or ask for volunteers.)
-3. Explain the "trust the process" philosophy: "Even if Git or Docker feel foreign now, by mid-semester you'll be deploying real applications."
+1. Offer a one-line intro (name + role) and share the session agenda at a glance.
+2. Drop learners into small Zoom breakout rooms for two minutes; ask each person to introduce themselves with one sentence (name + current goal).
+3. Pull everyone back and reinforce the "trust the process" philosophy: "Even if Git or Docker feel foreign now, by mid-semester you'll be deploying real applications."
 
 **Student Actions:**
-- Share your name and one thing you hope to build (web app, API, automation tool, etc.).
-- Note: No technical prerequisites needed today—we build from scratch together.
+- In your breakout room: state your name and one project you'd like to tackle this semester (web app, API, automation tool, etc.).
+- Listen for common interests; we'll use them to form lab buddies later.
 
 ### Course Overview (15 Minutes)
 **Instructor Talking Points:**
@@ -101,17 +192,18 @@ Use these numbered steps when you call out B# (Part B) or C# (Part C). Every com
    - All components must be completed to pass the course.
 
 3. **Collaboration & support:**
-   - Discord server: https://discord.gg/EYjQrSmF7f
+   - Discord server: see the LMS announcement for the latest invite (backup short link: https://go.eass.dev/discord).
    - Use the `#helpdesk` channel for all technical questions, AWS Academy help, and general support.
    - When asking for help, follow the **Problem → Action → Result → Desired** pattern: “I tried X, saw result R, and I’m aiming for Y.” Screenshots alone are not enough—share the exact command and output.
    - Pair programming during labs is encouraged—nobody should be stuck alone.
    - Once you join Discord, share your GitHub username and email so I can send you the GitHub Classroom invitations.
-   - Legacy study aids: download the Hebrew alumni notes at `lectures/notes/EASS-Complete-Natalie.pdf` and the archived slide deck at `lectures/archive/all_slides.pdf` for extra context between sessions.
+   - Legacy study aids: clone the archived resources repo (see LMS link) and review `lectures/notes/EASS-Complete-Natalie.pdf` (Hebrew) plus `lectures/archive/all_slides.pdf` for historical context and solved exercises.
 
 4. **AI policy (crucial):**
    - **You MAY use AI tools** (ChatGPT, Claude, Gemini, Cursor, GitHub Copilot, LM Studio, Ollama, etc.).
    - **You MUST understand** every line of code you submit and be ready to explain it during reviews.
    - Keep a lightweight specification in your repo (even a `spec.md` or a [tessl.io](https://tessl.io/) export) so both humans and AI helpers know the goal before you start coding. Update it as requirements evolve.
+   - Cite AI-assisted changes in your pull requests or README changelog, and never commit secrets—store keys in `.env` (already gitignored).
 
 5. **Learning philosophy:**
    - "This is a hands-on class. You'll see me type commands, and you'll type the same commands."
@@ -131,6 +223,7 @@ Use these numbered steps when you call out B# (Part B) or C# (Part C). Every com
 1. **Python 3.11+** – Our main programming language.
    - Modern syntax (type hints, `match` statements).
    - Rich ecosystem for web development.
+   - When to reach for it: every backend, scripting, and testing task in this course.
 
 2. **uv** – Fast Python environment and dependency manager.
    - Replaces `pip` + `virtualenv` + `pip-tools` with one tool.
@@ -145,6 +238,7 @@ Use these numbered steps when you call out B# (Part B) or C# (Part C). Every com
      uv run pytest            # runs command in the environment
      uv run python --version  # check Python version in venv
      ```
+    - When to reach for it: every time you install or run Python tooling—no more `pip install` in system Python.
 
 3. **Git & GitHub** – Version control and collaboration.
    - Every project starts with `git init`.
@@ -159,18 +253,20 @@ Use these numbered steps when you call out B# (Part B) or C# (Part C). Every com
      git push           # send to GitHub
      ```
    - Example: if you break something, `git log` shows history and you can go back to any previous version.
+   - When to reach for it: whenever you change code; push to GitHub for reviews and grading.
 
 4. **curl** – Command-line tool for HTTP requests.
    - Imagine a browser without the graphics: you type the request, it prints the response.
    - Use it before writing Python so you can see the raw data flowing over HTTP.
    - Quick demo:
      ```bash
-     curl https://api.github.com/users/github        # GET request
-     curl -s https://api.github.com/users/github | head -5
+     curl https://api.github.com/users/aws        # GET request
+     curl -s https://api.github.com/users/aws | head -5
      ```
      - `curl` fetches data from the URL.
      - `-s` hides progress noise; piping to `head -5` keeps the output short.
    - We'll rely on `curl` to debug APIs all semester.
+   - When to reach for it: smoke-test an endpoint before you write a client or suspect your code.
 
 5. **VS Code** – Our code editor.
    - Extensions we'll install today: Python, Pylance, GitLens, Docker, REST Client.
@@ -178,6 +274,7 @@ Use these numbered steps when you call out B# (Part B) or C# (Part C). Every com
    - Test explorer (run tests with one click).
    - IntelliSense (autocomplete and hints as you type).
    - Why VS Code? Free, powerful, works the same on Mac/Windows/Linux, and has extensions for everything.
+   - When to reach for it: daily editing, debugging, and test runs with visual feedback.
 
 6. **FastAPI** – Modern web framework (coming in Meeting 3).
    - Build REST APIs with automatic validation and documentation.
@@ -193,6 +290,7 @@ Use these numbered steps when you call out B# (Part B) or C# (Part C). Every com
      ```
    - Why FastAPI? Fast (high performance), modern (uses Python type hints), has built-in OpenAPI docs, and is used by Netflix, Uber, and Microsoft.
    - We'll also use **httpx** (not requests) for making HTTP calls—it's modern, supports async, and is the recommended client for FastAPI.
+   - When to reach for it: building APIs starting Meeting 3, plus anything that needs async/validation out of the box.
 
 7. **Docker** – Package your app and its environment (Meeting 4).
    - "Works on my machine" → "Works everywhere."
@@ -201,6 +299,7 @@ Use these numbered steps when you call out B# (Part B) or C# (Part C). Every com
    - Think of it as: a lightweight virtual machine that packages your app with all its dependencies.
    - Why Docker? Consistent environments, easy deployment, industry standard, and makes collaboration easier.
    - Preview command: `docker run hello-world` (we'll verify this works today).
+   - When to reach for it: packaging services for Exercise 3 and any time you need parity across machines.
 
 8. **LLMs (Large Language Models)** – AI as tool and component.
    - **As coding assistant:** Use ChatGPT/Cursor to generate boilerplate, write tests, debug errors.
@@ -210,6 +309,7 @@ Use these numbered steps when you call out B# (Part B) or C# (Part C). Every com
      - Example: build a chatbot API that uses a local LLM for responses.
      - We'll cover this in Meetings 8 and 12.
    - **Key principle:** AI accelerates your work, but you stay in the driver's seat. You must understand every line of code.
+   - When to reach for it: generating scaffolds, refactoring boilerplate, and building AI-powered features (Meetings 8+).
 
 9. **pytest** – Testing framework (we'll use today).
    - Automatically discovers and runs test functions (functions starting with `test_`).
@@ -235,15 +335,13 @@ Use these numbered steps when you call out B# (Part B) or C# (Part C). Every com
 2. **uv demo:**
    ```bash
    uv venv --python 3.11
-   source .venv/bin/activate  # Mac/Linux
-   # .venv\Scripts\activate   # Windows
    uv add httpx
    uv run python --version
    uv run python -c "import httpx; print(httpx.get('https://api.github.com/users/aws').json()['followers'])"
    ```
    - `uv venv` creates an isolated Python.
    - `uv add` installs a package and locks the version.
-   - `uv run` executes commands inside that environment.
+   - `uv run` executes commands inside that environment (activation is optional; keep using `uv run …` for consistency).
 
 3. **Git demo:**
    ```bash
@@ -269,7 +367,7 @@ Use these numbered steps when you call out B# (Part B) or C# (Part C). Every com
 - Goal: Normalize encountering errors and remind students to capture Problem → Action → Result → Desired when they ask for help.
 
 **Mini Quiz (3 Minutes):**
-- Rapid-fire questions: "Which command activates the virtualenv?", "What does `git add .` do?", "Why keep a spec file in the repo?" Let students answer verbally or via a quick poll to reinforce retention.
+- Rapid-fire questions: "Which command guarantees your tool runs inside the uv environment?", "What does `git add .` do?", "Why keep a spec file in the repo?" Let students answer verbally or via a quick poll to reinforce retention.
 
 **Student Actions:**
 - Verify you have a terminal open and can run basic commands.
@@ -282,7 +380,8 @@ Use these numbered steps when you call out B# (Part B) or C# (Part C). Every com
 ---
 
 ## BREAK (10 Minutes)
-Encourage movement, grab water, and launch the shared [10-minute timer](https://e.ggtimer.com/10minutes) before diving into Part B.
+Encourage movement, grab water, and launch the shared [10-minute timer](https://e.ggtimer.com/10minutes) before diving into Part B.  
+If the link fails, run `python -c "import time; time.sleep(600)"` or set a phone timer for 10 minutes.
 
 ---
 
@@ -361,8 +460,8 @@ This is the foundation for every project you'll build in this course."
 ---
 
 ## BREAK (10 Minutes)
-Stand up, stretch, grab water. When we return, we'll explore VS Code and improve our project.
-Launch a shared [10-minute timer](https://e.ggtimer.com/10minutes) so everyone returns on time.
+Stand up, stretch, grab water. When we return, we'll explore VS Code and improve our project.  
+Launch a shared [10-minute timer](https://e.ggtimer.com/10minutes) (or a local 10-minute timer if the link is blocked) so everyone returns on time.
 
 ---
 
@@ -414,6 +513,7 @@ Launch a shared [10-minute timer](https://e.ggtimer.com/10minutes) so everyone r
 ### Terminal Comfort (15 Minutes)
 
 **Instructor Live Coding (students type along):**
+> Time check: if you’re running late, compress this block to the first command group (pwd + ls + file create/delete) and move the rest to homework.
 1. Follow **Quick Reference C2** as a guided practice: run `pwd`, `ls -la`, create `notes.txt`, inspect it, then clean it up. Explain what each command reveals about the project.
 2. Demonstrate `git log --oneline --graph` and optional aliases once the workspace is back to a clean state.
 
@@ -438,6 +538,7 @@ uv run python -c "import sys; print(sys.executable)"
 ```
 
 Share a printed or PDF **terminal cheat sheet** (Mac shortcuts on the left, Windows/WSL on the right) so students can reference commands after class.
+Flag the PowerShell equivalents as you demo (`Remove-Item`, `Get-ChildItem`, etc.) so Windows users can mirror the workflow.
 
 **Student Task:**
 - Type each command and observe the output.
@@ -466,8 +567,9 @@ Share a printed or PDF **terminal cheat sheet** (Mac shortcuts on the left, Wind
    2. Create and activate a virtual environment:
       ```bash
       uv venv
-      source .venv/bin/activate  # Mac/Linux
-      # .venv\Scripts\Activate.ps1  # Windows
+      # Optional: source .venv/bin/activate  (macOS/Linux)
+      # Optional: .venv\Scripts\Activate.ps1  (Windows PowerShell)
+      # Canonical pattern in this course: use `uv run ...` instead of activation.
       ```
    
    3. Install dependencies:
@@ -628,13 +730,14 @@ Post in Discord `#helpdesk`:
 
 ### Before Class:
 - [ ] Python 3.11+ installed on all lab machines
-- [ ] uv installed (`pip install uv` or official installer)
+- [ ] uv installed (Astral installer or package manager; verify with `uv --version`)
 - [ ] Git installed and verified
 - [ ] VS Code installed with Python extension
 - [ ] Docker Desktop installed (for verification only today)
-- [ ] Discord invite link ready (https://discord.gg/EYjQrSmF7f)
+- [ ] Discord invite link ready (see LMS or backup https://go.eass.dev/discord)
 - [ ] Slides or talking points prepared for Part A
 - [ ] Example `hello-uv` project on your machine for demo
+- [ ] Lab Quick Reference + terminal cheat sheet shared (print or PDF)
 
 ### During Class:
 - [ ] Share Discord link in chat/on board
@@ -689,18 +792,26 @@ Expect the success message; on Windows remind them to enable WSL Integration in 
 
 ---
 
+### PAR↴D Help Template (Copy/Paste into `#helpdesk`)
+```
+**Problem:** <short description>
+**Action(s):** <exact commands you ran>
+**Result:** ```<full output / error>```
+**Desired:** <what you expected or are trying to achieve>
+```
+Providing all four lines saves everyone time and gives you sharper answers.
+
+---
+
 ## Troubleshooting Guide
 
 ### Issue: `uv: command not found`
 
 **Solution:**
 ```bash
-# Try installing with pip:
-pip install uv
-
-# Or use the official installer:
 # Mac/Linux:
 curl -LsSf https://astral.sh/uv/install.sh | sh
+# (optional) Homebrew users: brew install uv
 
 # Windows:
 powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
@@ -708,6 +819,7 @@ powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 # After installing, restart your terminal or run:
 source ~/.bashrc  # or ~/.zshrc on Mac
 ```
+If you still prefer `pip install uv`, do it inside a disposable virtual environment so the binary lands on your PATH predictably.
 
 ### Issue: `git commit` fails with "Please tell me who you are"
 
