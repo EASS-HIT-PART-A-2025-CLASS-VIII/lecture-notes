@@ -8,6 +8,8 @@
 - Install or verify core tools: uv, Git, Python 3.11+, VS Code, Docker Desktop.
 - Create a minimal Python project with uv and run tests from the terminal.
 
+**Guiding principles:** keep everything **KISS** (Keep It Simple, Students) and share questions using the **PARD** format (Problem → Action → Result → Desired) so we can move fast together.
+
 ## Before Class – Equipment Check (JiTT)
 Ask students to complete this 5-minute checklist the night before:
 - Run `python3 --version` (or `py --version` on Windows), `uv --version`, `git --version`, and `code --version`. Paste the commands _and_ outputs in Discord `#helpdesk` using the **Problem → Action → Result → Desired** template (see below).
@@ -85,44 +87,18 @@ Use these numbered steps when you call out B# (Part B) or C# (Part C). Unless ot
   uv run pytest -q
   ```  
   Expect three dots and “3 passed”.
-- **B5** – _Create `.gitignore`:_  
+- **B5** – _Create `.gitignore` (KISS edition):_  
+  Keep only what we actually generate today.
   - Bash/WSL/macOS:  
     ```bash
     cat > .gitignore <<'EOF'
-    # Python
     __pycache__/
-    *.py[cod]
-    *.so
-    .Python
-
-    # Virtual environments
     .venv/
-    venv/
-    ENV/
-
-    # IDE
-    .vscode/
-    .idea/
-    *.swp
-    *.swo
-
-    # Testing
-    .pytest_cache/
-    .coverage
-    htmlcov/
-
-    # OS
-    .DS_Store
-    Thumbs.db
-
-    # uv
     .uv/
-
-    # Secrets
     .env
     EOF
     ```
-  - PowerShell (heredoc unsupported): run `notepad .gitignore` or `code .gitignore` and paste the same content.
+  - PowerShell: `notepad .gitignore` (or `code .gitignore`) and paste the same four lines.
 - **B6** – _Initial commit:_  
   ```bash
   git init
@@ -146,16 +122,22 @@ Use these numbered steps when you call out B# (Part B) or C# (Part C). Unless ot
   git add README.md
   git commit -m "docs: add project README"
   ```
-- **C5 (Optional)** – _Publish to GitHub Classroom org:_  
+- **C5 (Optional)** – _Publish via GitHub CLI:_  
   ```bash
   git branch -M main
+  gh auth status || gh auth login
+  gh repo create EASS-HIT-PART-A-2025-CLASS-VIII/hello-uv-<handle> \
+    --source=. --remote=origin --push --private
+  ```
+  If `gh` is unavailable, fall back to:
+  ```bash
   git remote add origin git@github.com:EASS-HIT-PART-A-2025-CLASS-VIII/hello-uv-<handle>.git
   git push -u origin main
   ```
 
 ## Talking Script – Course Overview (First 45 Minutes)
 1. **Introduce yourself and the course tone.** "This class is about learning by doing. You will see me live-code and you will copy/paste freely. Questions are always welcome. Trust the process—even if things feel unfamiliar at first, by the end you'll be building real web applications with modern tools."
-2. **Set expectations for participation.** "We use Discord for day-to-day help. Post what you tried before asking. Pair up during labs so nobody gets stuck. Join using https://discord.gg/EYjQrSmF7f and use the `#helpdesk` channel for all technical questions."
+2. **Set expectations for participation.** "We use Discord for day-to-day help. Post what you tried before asking. Pair up during labs so nobody gets stuck. Join using the LMS link (backup: https://go.eass.dev/discord) and use the `#helpdesk` channel for all technical questions."
 3. **Explain grading.** “We have three large exercises. Each one is assigned on a Monday and due on a Tuesday three weeks later. There are no surprise quizzes. Show up, code along, and you will earn the grade.”
 4. **Clarify AI policy.** "You may use AI tools like ChatGPT, Claude, Gemini, Cursor, Copilot, LM Studio, or Ollama. You must understand every line you submit, keep a lightweight spec (spec.md or a tessl.io export) in your repo, and when you ask for help share Problem → Action → Result → Desired."
 5. **Outline the tool belt.** "Today we confirm Python 3.11+, uv for environments, Git for version control, VS Code for editing, and Docker Desktop for later sessions. Soon we'll add FastAPI for building web APIs and learn to use LLMs both as coding assistants (to help you write code faster) and as components inside your applications (like calling a local LLM endpoint)."
@@ -250,10 +232,10 @@ Use these numbered steps when you call out B# (Part B) or C# (Part C). Unless ot
      git status         # what changed?
      git add .          # stage changes
      git commit -m "…"  # save snapshot with a message
-     git push           # send to GitHub
+     gh repo create ... # create/push via GitHub CLI
      ```
    - Example: if you break something, `git log` shows history and you can go back to any previous version.
-   - When to reach for it: whenever you change code; push to GitHub for reviews and grading.
+   - When to reach for it: whenever you change code; push to GitHub for reviews and grading. We standardise on the GitHub CLI (`gh`) for authentication, repo creation, and pull requests.
 
 4. **curl** – Command-line tool for HTTP requests.
    - Imagine a browser without the graphics: you type the request, it prints the response.
@@ -646,6 +628,7 @@ Every project you submit must have a README. This is your first impression."
 **Instructor Live Coding:**
 1. Run **Quick Reference C4** to stage and commit `README.md`. Pause to highlight the difference between working tree, staging area, and commit history.
 2. For teams ready to publish, follow **Quick Reference C5**. Show the live GitHub repo so students see the end-to-end flow (create repo under the organisation, add remote, push, verify).
+   - Highlight the GitHub CLI flow: `gh auth login`, `gh repo create … --push`, and later `gh pr create` for reviews.
 
 **Collaboration Preview (2 Minutes):**
 - Explain that future exercises will use feature branches and pull requests (branch → commit → open PR → code review → merge).
@@ -695,7 +678,7 @@ This is the workflow you'll use for all three exercises."
 
 3. **Homework and next steps:**
    - **Tonight:** 
-     - Join Discord (https://discord.gg/EYjQrSmF7f)
+     - Join Discord (LMS link or https://go.eass.dev/discord)
      - Share your GitHub username and email in `#helpdesk` so I can send you invitations
    - **This week:** 
      - Wait for the AWS Academy invitation link (I'll send it after you share your email)
@@ -793,6 +776,7 @@ Expect the success message; on Windows remind them to enable WSL Integration in 
 ---
 
 ### PAR↴D Help Template (Copy/Paste into `#helpdesk`)
+Pronounced “PARD”. The down arrow just reminds you to include the exact output (results flow **down** from your actions).
 ```
 **Problem:** <short description>
 **Action(s):** <exact commands you ran>
