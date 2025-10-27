@@ -10,6 +10,8 @@
 
 **Guiding principles:** keep everything **KISS** (Keep It Simple, Students) and share questions using the **PARD** format (Problem → Action → Result → Desired) so we can move fast together. All commands assume macOS, Linux, or Windows Subsystem for Linux (WSL); no native Windows PowerShell steps are covered.
 
+You are how you act: forget Rousseau's inner goodness—Franklin reminds us that habits win and you become what you repeatedly do. Even with "vibe coding" and AI helpers at your side, your job is to own the repo, keep the tests green, and make sure the code stays explainable and scalable.
+
 ## Before Class – Equipment Check (JiTT)
 Ask students to complete this 5-minute checklist the night before:
 - Run `python3 --version` (or `py --version` on Windows), `uv --version`, `git --version`, and `code --version`. Paste the commands _and_ outputs in Discord `#helpdesk` using the **Problem → Action → Result → Desired** template (see below).
