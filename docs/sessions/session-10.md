@@ -1,224 +1,234 @@
-# Session 10 – Docker Compose and Service Contracts
+# Session 10 – Docker Compose, Redis, and Service Contracts
 
-- **Date:** Monday, Jan 5, 2026
-- **Theme:** Run multiple services together with Docker Compose and document how they interact.
+- **Date:** Monday, Jan 12, 2026
+- **Theme:** Run the movie API with Redis and worker services via Docker Compose, enforce service contracts, and introduce rate limiting/background jobs.
 
 ## Learning Objectives
-- Describe why multi-service architectures use reverse proxies and shared caches.
-- Write a Docker Compose file that starts the API, a Redis cache, and an nginx front door.
-- Document service contracts (endpoints, ports, health checks, cache responsibilities) clearly.
+- Model multi-service environments with Docker Compose (API, Redis, worker, proxy).
+- Use Redis for caching and rate limiting (`slowapi`) and discuss background jobs (Celery or Arq) for async tasks.
+- Harden API contracts with Schemathesis (from Session 02 stretch) and document expectations in `docs/service-contract.md`.
+- Wire coverage + contract tests into GitHub Actions for CI confidence.
+
+## Before Class – Compose Preflight (JiTT)
+- Install Redis locally or ensure Docker Desktop can pull `redis:7-alpine`:
+  ```bash
+  docker pull redis:7-alpine
+  ```
+- Review the provided Compose primer (LMS) and list one question about networking or environment variables.
+- Run `uv run schemathesis run docs/contracts/openapi.json --checks status_code_conformance --dry-run` to confirm tooling works.
 
 ## Agenda
 | Segment | Duration | Format | Focus |
 | --- | --- | --- | --- |
-| Holiday recap | 10 min | Conversation | Quick check-in and EX3 excitement |
-| Microservice rationale | 20 min | Talk + drawing | When to split services, pros/cons |
-| Service contracts | 15 min | Talk | HTTP contracts, cache responsibilities, health checks |
-| AWS module check | 5 min | Announcement | Confirm AWS Academy certificates were submitted by Dec 16 and note any make-up steps |
-| Lab 1 | 45 min | Guided coding | Compose file + Redis cache + nginx proxy |
-| Break | 10 min | — | Launch [10-minute timer](https://e.ggtimer.com/10minutes) and reset |
-| Lab 2 | 45 min | Guided coding | Structured logging/metrics + documentation |
-| EX3 assignment briefing | 10 min | Talk | Requirements, milestones, grading |
+| Recap & async wins | 10 min | Discussion | Share Session 09 takeaways, identify bottlenecks. |
+| Compose architecture | 18 min | Talk + diagram | api + redis + worker + proxy, networks, volumes. |
+| Micro demo: redis cache hit | 5 min | Live demo | Use `redis-cli` to show cache set/get vs API latency. |
+| Contract testing refresher | 12 min | Talk | Schemathesis, JSON schema examples, service obligations. |
+| **Part B – Lab 1** | **45 min** | **Guided build** | **Docker Compose stack with FastAPI, Redis, background worker.** |
+| Break | 10 min | — | Launch the shared [10-minute timer](https://e.ggtimer.com/10minutes). |
+| **Part C – Lab 2** | **45 min** | **Guided validation** | **Rate limiting, contract tests, GitHub Actions CI pipeline.** |
+| Wrap-up | 10 min | Q&A | EX3 milestone reminder, deployment prep.
 
-## Teaching Script – Why Compose?
-1. Illustrate monolith vs. split services on the board. Emphasize: “Compose lets us run all services with one command.”
-2. Explain the role of a reverse proxy: “nginx sits at the edge, handles TLS (later), and routes traffic to FastAPI.”
-3. Introduce the concept of a service contract: endpoint list, auth requirements, success/error schemas.
-4. Confirm AWS Academy **Databases** completion: “All AWS modules were due **Tuesday, Dec 16, 2025**. If you still owe a submission, upload it tonight and ping me on Discord.”
+## Part A – Theory Highlights
+1. **Compose structure:** `services` block, named volumes, networks, environment variables, healthchecks (`depends_on` with `service_healthy`).
+2. **Redis roles:** caching (movie list), rate limiting tokens, job queue backend.
+3. **Background jobs:** choose one lightweight runner (Arq or Celery). For class we’ll show Arq because it rides on asyncio.
+4. **Contracts:** `docs/service-contract.md` documents request/response shapes; Schemathesis enforces them alongside integration tests.
+5. **CI pipeline:** Compose for local dev, GitHub Actions for CI (use services job with `services.redis`, run `uv sync --frozen`, `pytest --cov`, `schemathesis`).
 
 ## Part B – Hands-on Lab 1 (45 Minutes)
-### Directory Prep
-```bash
-mkdir -p ops
-```
-
-### Install Redis Client
-```bash
-uv add redis
-```
-
-### Update `app/main.py`
-Add Redis caching for recommendations:
-```python
-import json
-import os
-import redis
-
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-redis_client = redis.Redis.from_url(REDIS_URL, decode_responses=True)
-
-
-@app.get("/recommendations/{user_id}")
-def get_recommendations(user_id: int, limit: int = 5) -> list[int]:
-    cached = redis_client.get("recommendations")
-    if cached:
-        model = json.loads(cached)
-        return model.get(str(user_id), [])[:limit]
-    ratings = repository.list_ratings()
-    results = recommender.recommend_for_user(ratings, user_id, k=limit)
-    return results
-```
-
-Inside the background task from Session 09, persist the rebuilt model:
-```python
-model = recommender.build_model(ratings)
-redis_client.set("recommendations", json.dumps(model))
-```
-
-### nginx Configuration (`ops/nginx.conf`)
-```nginx
-server {
-    listen 80;
-
-    location / {
-        proxy_pass http://api:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
-```
-
-### Docker Compose (`docker-compose.yml`)
+### 1. Compose file (`compose.yaml`)
 ```yaml
-version: "3.9"
-
 services:
   api:
     build: .
-    command: ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
-    environment:
-      REDIS_URL: redis://redis:6379/0
+    command: uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
     ports:
       - "8000:8000"
+    environment:
+      - MOVIE_REDIS_URL=redis://redis:6379/0
+      - MOVIE_RATE_LIMIT_PER_MINUTE=20
     depends_on:
       redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 10s
-      timeout: 2s
-      retries: 5
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  worker:
+    build: .
+    command: uv run arq app.worker.WorkerSettings
+    environment:
+      - MOVIE_REDIS_URL=redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 2s
-      retries: 10
-  nginx:
-    image: nginx:alpine
-    volumes:
-      - ./ops/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-    ports:
-      - "8080:80"
-    depends_on:
-      api:
-        condition: service_healthy
+      interval: 10s
+      timeout: 3s
+      retries: 5
 ```
+Explain networks (default) and volumes (add later for persistence if needed).
 
-### Run Compose
-```bash
-docker compose up --build
+### 2. Redis client helper (`app/cache.py`)
+```python
+from functools import lru_cache
+
+import redis.asyncio as redis
+
+from app.config import Settings
+
+
+@lru_cache(maxsize=1)
+def get_redis(settings: Settings) -> redis.Redis:
+    return redis.from_url(settings.redis_url, decode_responses=True)
 ```
-Test through the proxy and cache:
-```bash
-curl http://localhost:8080/health
-curl http://localhost:8080/recommendations/7?limit=3
+Extend `Settings` with `redis_url: str` and `rate_limit_per_minute: int`.
+
+### 3. Rate limiting middleware (`app/rate_limit.py`)
+```python
+import time
+
+from fastapi import HTTPException, Request
+
+from app.cache import get_redis
+from app.config import Settings
+
+
+async def rate_limit(request: Request, call_next):
+    settings = Settings()
+    redis_client = get_redis(settings)
+    key = f"rate:{request.client.host}:{request.url.path}"
+    window = 60
+    max_requests = settings.rate_limit_per_minute
+
+    current = await redis_client.incr(key)
+    if current == 1:
+        await redis_client.expire(key, window)
+
+    if current > max_requests:
+        raise HTTPException(status_code=429, detail="Too many requests")
+
+    response = await call_next(request)
+    response.headers["X-RateLimit-Limit"] = str(max_requests)
+    response.headers["X-RateLimit-Remaining"] = str(max_requests - current)
+    return response
 ```
+Mount middleware in `app/main.py` before routes.
 
-### Clean Up
-`Ctrl+C` to stop, then `docker compose down`
+### 4. Background worker (`app/worker.py`)
+```python
+from arq import cron
+from arq.connections import RedisSettings
 
----
+from app.config import Settings
 
-## Break (10 Minutes)
-Launch the shared [10-minute timer](https://e.ggtimer.com/10minutes), stretch, and get ready for Part C.
 
----
+class WorkerSettings:
+    redis_settings = RedisSettings.from_url(Settings().redis_url)
 
-## Part C – Hands-on Lab 2 (45 Minutes)
-### Add Structured Logs
-Update `app/main.py` logging middleware to output JSON-style lines:
+    async def startup(self, ctx):
+        ctx["settings"] = Settings()
+
+    async def shutdown(self, ctx):
+        ctx.pop("settings", None)
+
+    async def refresh_recommendations(self, ctx, user_id: int) -> None:
+        settings: Settings = ctx["settings"]
+        # call async refresher from Session 09
+
+    functions = [refresh_recommendations]
+    cron_jobs = [cron(refresh_recommendations, cron_string="0 * * * *", kwargs={"user_id": 42})]
+```
+Explain Arq’s simplicity and how it leverages async functions. Mention Celery as alternative if teams want more features.
+
+### 5. Caching `GET /movies`
+Wrap the list route in `app/main.py`:
 ```python
 import json
 
+from fastapi import Depends
 
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
-    start = time.perf_counter()
-    response = await call_next(request)
-    duration_ms = (time.perf_counter() - start) * 1000
-    log_message = json.dumps(
-        {
-            "method": request.method,
-            "path": request.url.path,
-            "status": response.status_code,
-            "duration_ms": round(duration_ms, 2),
-        }
-    )
-    logger.info(log_message)
-    return response
+from app.cache import get_redis
+
+
+@app.get("/movies", response_model=list[Movie])
+async def list_movies(repository: RepositoryDep, settings: SettingsDep) -> list[Movie]:
+    redis_client = get_redis(settings)
+    cache_key = "movies:list"
+    cached = await redis_client.get(cache_key)
+    if cached:
+        return json.loads(cached)
+
+    result = [movie for movie in repository.list()]
+    await redis_client.setex(cache_key, 60, json.dumps([movie.model_dump() for movie in result]))
+    return result
 ```
+Remember to invalidate cache in POST/PUT/DELETE handlers.
 
-### Document Service Contract
-Create `docs/service-contract.md` and list:
-- External URL: `http://localhost:8080`
-- Public endpoints: `/health`, `/movies`, `/movies/top`, `/recommendations/{user_id}`, `/recommender/rebuild` (async).
-- Expected request/response shapes (copy from FastAPI models)
-- Authentication: none yet (Session 11 adds JWT for protected writes). Include Redis as the cache provider for recommendation data.
+## Part C – Lab 2 (45 Minutes)
+### 1. Contract tests with Schemathesis
+```bash
+uv run schemathesis run http://localhost:8000/openapi.json --checks status_code_conformance --workers 2
+```
+Address failures immediately; update docs if behavior changes. Store command in `Makefile` or `scripts/check_contract.sh`.
 
-### Optional Metrics Endpoint
-Add a simple `/metrics` route returning how many requests were processed (store a counter in `app.state`).
-
-## Exercise 3 Briefing
-- **Assigned:** Today (Mon Jan 5).
-- **Milestone demo:** Tue Jan 20 – show stack running with Compose and advanced feature in progress.
-- **Final due:** Tue Feb 10 – full stack, documentation, tests.
-- **Advanced feature options:**
-  1. Async background job with status dashboard (session 09).
-  2. JWT-based auth (session 11 preview).
-  3. Observability: metrics + log aggregation.
-- Rubric highlights: architecture (25), advanced feature (30), reliability (15), tests (15), documentation (15).
-
-## Troubleshooting
-- If Compose cannot find the Dockerfile, verify `docker-compose.yml` is in the project root.
-- For `nginx` permission denials on Windows, ensure file sharing is enabled for the drive.
-- Health check failing? Make sure `/health` returns 200 and the container exposes port 8000.
-
-## Student Success Criteria
-- `docker compose up` starts `api`, `redis`, and `nginx` services.
-- API reachable via `http://localhost:8080` with proxied traffic logged and cached recommendations served via Redis.
-- Service contract document captured endpoints, expected JSON payloads, and cache responsibilities (what lives in Redis vs. SQLite).
-- Students have confirmed their AWS Databases certificate was submitted by **Tue Dec 16, 2025** (or have a catch-up plan).
-
-## Optional: Quick CI with GitHub Actions
-Create `.github/workflows/ci.yml` in your repo:
+### 2. GitHub Actions pipeline
+`.github/workflows/ci.yaml` (excerpt):
 ```yaml
-name: CI
-on: [push, pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Install uv
-        run: pip install uv
-      - name: Sync deps
-        run: uv sync --dev
-      - name: Run tests
-        run: uv run pytest -q
+      - uses: astral-sh/setup-uv@v1
+      - run: uv sync --frozen
+      - run: uv run pytest --cov=app --cov-report=term-missing
+      - run: uv run schemathesis run http://localhost:8000/openapi.json --checks status_code_conformance --dry-run
 ```
+Explain how to swap the dry run for real execution once you can boot the API inside CI (Compose + `uvicorn` background run).
 
-## AI Prompt Kit (Copy/Paste)
-- “Write a `docker-compose.yml` with services `api`, `redis`, and `nginx` where the API consumes `REDIS_URL` and waits for Redis to be healthy.”
-- “Draft an `nginx.conf` that proxies `/` to `http://api:8000` with standard headers and passes through `/health` and `/recommendations`.”
-- “Create a minimal GitHub Actions workflow that installs uv, syncs dependencies, and runs pytest on every push.”
+### 3. Rate limiting test (429)
+```python
+def test_rate_limit(client):
+    for _ in range(Settings().rate_limit_per_minute):
+        assert client.get("/movies").status_code == 200
 
-## Quick Reference (External Search / ChatGPT)
-- **Google:** `docker compose fastapi redis nginx example`
-- **ChatGPT prompt:** “List three talking points to explain why we pair FastAPI + Redis + nginx in a Compose demo.”
+    response = client.get("/movies")
+    assert response.status_code == 429
+    assert response.json()["detail"] == "Too many requests"
+```
+Use `freezegun` or monkeypatch time if the window needs reset.
+
+### 4. Contract documentation
+Update `docs/service-contract.md` with:
+- Rate limit headers and expected values.
+- Cache invalidation rules.
+- Background job SLA (refresh runs every hour; immediate manual trigger via CLI).
+
+## Wrap-up & Next Steps
+- ✅ Compose stack, Redis cache + rate limiting, background worker, contract testing, CI pipeline outline.
+- Prep for Session 11 (Security Foundations): audit secrets, rotate tokens, create `.env.example` entries for Redis auth if enabled.
+
+## Troubleshooting
+- **Redis connection refused** → confirm Compose network is up or local Redis running; check `redis_url` env.
+- **Slow Schemathesis runs** → narrow to critical endpoints with `--endpoint` filter or run in CI nightly.
+- **Arq import error** → install `uv add "arq==0.*"`; ensure worker service uses same image/tag as API.
+
+## AI Prompt Seeds
+- “Draft a docker-compose.yml with FastAPI, Redis, and an Arq worker including healthchecks.”
+- “Write FastAPI middleware that rate limits requests using Redis tokens.”
+- “Generate a GitHub Actions workflow that runs pytest with coverage and Schemathesis contract tests.”

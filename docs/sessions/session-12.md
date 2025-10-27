@@ -1,229 +1,191 @@
 # Session 12 – Tool-Friendly APIs and Final Prep
 
-- **Date:** Monday, Jan 19, 2026
-- **Theme:** Shape APIs so they are easy for automation tools and LLMs to consume, and rehearse for the Exercise 3 milestone.
+- **Date:** Monday, Jan 26, 2026
+- **Theme:** Polish the API for external tools (MCP-friendly), lock in documentation/testing pipelines, and prep EX3 final presentations.
 
 ## Learning Objectives
-- Design deterministic endpoints with clear success and error schemas.
-- Document API usage for both humans and automated tools.
-- Validate Exercise 3 projects against a readiness checklist.
+- Expose tool-friendly endpoints with deterministic request/response models and OpenAPI examples (happy + sad paths).
+- Add finishing touches: ETag/`If-None-Match`, pagination, feature flags, CSV export endpoint.
+- Automate docs + quality gates (MkDocs/pdocs, Ruff, mypy, pre-commit, changelog).
+- Plan release checklist for EX3, including deployment commands and verification steps.
+
+## Before Class – Final Prep (JiTT)
+- Ensure EX3 repos are up to date, Docker Compose stack runs cleanly, and tests pass with coverage + Schemathesis.
+- Install doc tooling if not already:
+  ```bash
+  uv add "mkdocs-material==9.*" "pdocs==1.*" "ruff==0.*" "mypy==1.*" "pre-commit==3.*"
+  ```
+- Draft a release checklist outline (who, what, when) for your EX3 team.
 
 ## Agenda
 | Segment | Duration | Format | Focus |
 | --- | --- | --- | --- |
-| Warm-up | 10 min | Discussion | “What finishing touches did you add to EX3 over the weekend?” |
-| Tool-friendly API talk | 25 min | Talk + examples | Deterministic responses, idempotency, explicit error codes |
-| Prompt-to-tool demo | 20 min | Live coding | Call an API endpoint from LM Studio or vLLM (Docker) |
-| Lab 1 | 45 min | Guided coding | Create `/tool/recommend-movie` with clear schema |
-| Break | 10 min | — | Launch [10-minute timer](https://e.ggtimer.com/10minutes) and reset |
-| Lab 2 | 45 min | Guided practice | Run readiness checklist, update docs, rehearse demos |
-| Closing circle | 10 min | Discussion | Share biggest lessons from the course |
+| EX3 dry run | 20 min | Student demos | Show the Compose stack + tool endpoint + observability dashboards. |
+| Tool-friendly design | 15 min | Talk | Deterministic schemas, pagination strategy, ETags, versioning. |
+| Micro demo: ETag handshake | 5 min | Live demo | `curl` with `If-None-Match` to show 304 responses. |
+| Release hygiene | 15 min | Talk | Pre-commit, Ruff, mypy, docs generation, changelog management. |
+| **Part B – Lab 1** | **45 min** | **Guided polish** | **Add pagination, ETags, CSV export, OpenAPI examples.** |
+| Break | 10 min | — | Launch the shared [10-minute timer](https://e.ggtimer.com/10minutes). |
+| **Part C – Lab 2** | **45 min** | **Guided automation** | **Docs build, pre-commit hooks, release checklist rehearsal.** |
+| Closing circle | 10 min | Discussion | Reflect on growth, commit to next steps, celebrate wins.
 
-## Teaching Script – Tool-Friendly Design
-1. “Bots are impatient students—they need predictable responses.”
-2. Define a good tool endpoint:
-   - Input schema fully specified.
-   - Output contains `status`, `data`, and `error` fields.
-   - Errors use machine-readable codes (for example, `NO_DATA`, `UNAUTHORISED`).
-3. Introduce idempotency: sending the same request twice should not create duplicate records.
-4. Stress documentation: include example request/response bodies right in the README.
+## Part A – Theory Highlights
+1. **Tool readiness:** consistent schema, explicit examples, stable ids (ULIDs vs ints). For now keep ints but document transition plan.
+2. **Pagination + filtering conventions:** `?page=1&page_size=20`, `X-Total-Count` header, link relations.
+3. **ETag caching:** Return `ETag` for list endpoints, support conditional GET to reduce load.
+4. **Docs automation:** MkDocs or pdocs to publish API docs; pre-commit ensures formatting/lint before commits; changelog via Conventional Commits.
+5. **Release checklist:** version bump, `uv sync --frozen`, `docker compose build`, smoke tests, tag release, update docs.
 
-## Part B – Hands-on Lab 1 (45 Minutes)
-### Endpoint Implementation
-Add to `app/main.py`:
+## Part B – Lab 1 (45 Minutes)
+### 1. Pagination helpers (`app/pagination.py`)
 ```python
-from fastapi import Body
-from pydantic import BaseModel
+from math import ceil
+from typing import Sequence
+
+from fastapi import Query
 
 
-class ToolRecommendation(BaseModel):
-    user_id: int
-    limit: int = 5
-
-
-@app.post("/tool/recommend-movie")
-async def tool_recommend_movie(
-    payload: ToolRecommendation = Body(..., embed=True),
-    user: User = Depends(require_role("editor")),
-) -> dict[str, object]:
-    ratings = repository.list_ratings()
-    recommendations = recommender.recommend_for_user(
-        ratings,
-        user_id=payload.user_id,
-        k=payload.limit,
-    )
-    return {
-        "status": "ok",
-        "data": {
-            "user_id": payload.user_id,
-            "recommendations": recommendations,
-        },
-        "error": None,
-    }
+def paginate(items: Sequence, page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=100)):
+    total = len(items)
+    pages = ceil(total / page_size) if page_size else 1
+    start = (page - 1) * page_size
+    end = start + page_size
+    return items[start:end], {"page": page, "page_size": page_size, "total": total, "pages": pages}
 ```
-
-### Start the API (if not already running)
-```bash
-uv run uvicorn app.main:app --reload
-```
-Leave this terminal running while you test the tool endpoint.
-
-### Obtain an Editor Token (Session 11 auth)
-In a second terminal, request a JWT for the `teacher` role and export it for reuse:
-```bash
-curl -X POST http://localhost:8000/token \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=teacher&password=classroom"
-
-export TOKEN="<paste-access-token-here>"
-```
-
-### Documentation Block
-Encourage instructors to paste the following example into `docs/service-contract.md`:
-```markdown
-### POST /tool/recommend-movie
-- Request body:
-  ```json
-  {
-    "payload": {
-      "user_id": 42,
-      "limit": 5
-    }
-  }
-  ```
-- Success response:
-  ```json
-  {
-    "status": "ok",
-    "data": {
-      "user_id": 42,
-      "recommendations": [3, 7, 1, 9, 5]
-    },
-    "error": null
-  }
-  ```
-- Error response (no data yet):
-  ```json
-  {
-    "status": "ok",
-    "data": {
-      "user_id": 42,
-      "recommendations": []
-    },
-    "error": null
-  }
-  ```
-```
-
-### Tool Call Demo
-Use LM Studio or plain `curl`:
-```bash
-curl -X POST http://localhost:8000/tool/recommend-movie \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $TOKEN" \
-  -d '{"payload": {"user_id": 42, "limit": 5}}'
-```
-Show how deterministic responses make it easy to parse results.
-
-Optional LM Studio script (save as `scripts/ask_tool.py`):
+Update `/movies` route:
 ```python
-import httpx
+from fastapi import Response
+from app.pagination import paginate
 
-payload = {
-    "model": "local-llm",
-    "messages": [
-        {
-            "role": "user",
-            "content": "Should I call POST /tool/recommend-movie with name=Notebook?"
+
+@app.get("/movies", response_model=list[Movie], openapi_extra={
+    "responses": {
+        200: {
+            "description": "List movies",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "default": {
+                            "summary": "First page",
+                            "value": [{"id": 1, "title": "Arrival", "year": 2016, "genre": "Sci-Fi"}],
+                        }
+                    }
+                }
+            },
         }
-    ],
-}
-
-response = httpx.post("http://localhost:1234/v1/chat/completions", json=payload, timeout=30)
-print(response.json()["choices"][0]["message"]["content"])
+    }
+})
+async def list_movies(response: Response, repository: RepositoryDep, settings: SettingsDep, page: int = 1, page_size: int = 20) -> list[Movie]:
+    movies = [movie for movie in repository.list()]
+    page_items, meta = paginate(movies, page, page_size)
+    response.headers["X-Total-Count"] = str(meta["total"])
+    response.headers["X-Total-Pages"] = str(meta["pages"])
+    return page_items
 ```
-Run it with:
+
+### 2. ETag support
+```python
+import hashlib
+import json
+from fastapi import Request, Response, status
+
+
+def compute_etag(payload: str) -> str:
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+@app.get("/movies", response_model=list[Movie], ...)
+async def list_movies(
+    request: Request,
+    response: Response,
+    repository: RepositoryDep,
+    settings: SettingsDep,
+    page: int = 1,
+    page_size: int = 20,
+) -> list[Movie]:
+    movies = [movie for movie in repository.list()]
+    page_items, meta = paginate(movies, page, page_size)
+    response.headers["X-Total-Count"] = str(meta["total"])
+    response.headers["X-Total-Pages"] = str(meta["pages"])
+
+    payload = json.dumps([movie.model_dump() for movie in page_items], sort_keys=True)
+    etag = compute_etag(payload)
+    if request.headers.get("If-None-Match") == etag:
+        return Response(status_code=status.HTTP_304_NOT_MODIFIED)
+
+    response.headers["ETag"] = etag
+    response.headers["Cache-Control"] = "public, max-age=60"
+    return page_items
+```
+Ensure tests cover 200 + 304 paths.
+
+### 3. CSV export endpoint
+```python
+from fastapi.responses import StreamingResponse
+
+
+@app.get("/movies/export.csv")
+async def export_movies_csv(repository: RepositoryDep) -> StreamingResponse:
+    def generate():
+        yield "id,title,year,genre\n"
+        for movie in repository.list():
+            yield f"{movie.id},{movie.title},{movie.year},{movie.genre}\n"
+
+    return StreamingResponse(generate(), media_type="text/csv")
+```
+Add tests verifying content type, header, sample rows.
+
+### 4. Feature flags (config driven)
+Use `Settings.feature_preview` to gate experimental endpoints (toggle via `.env`). Document in README.
+
+## Part C – Lab 2 (45 Minutes)
+### 1. Documentation build
+- Generate API docs: `uv run pdocs serve app` or `uv run mkdocs serve` (choose one per team).
+- Publish `docs/service-contract.md` updates with OpenAPI examples, rate limiting info, and agent endpoints.
+
+### 2. Pre-commit + lint/type checks
 ```bash
-uv run python scripts/ask_tool.py
+cat <<'CFG' > .pre-commit-config.yaml
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.0
+    hooks:
+      - id: ruff
+      - id: ruff-format
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.10.0
+    hooks:
+      - id: mypy
+CFG
+
+pre-commit install
+pre-commit run --all-files
 ```
-Adjust the LM Studio URL/model as needed.
+Add `uv run ruff check .` and `uv run mypy app` to CI.
 
-Optional vLLM note: If you started vLLM via Docker in Session 08, point the client to `http://localhost:8000/v1` and set `model` to the tiny model you launched (for example, `TinyLlama/TinyLlama-1.1B-Chat-v1.0`). The OpenAI Python client also works by supplying `base_url` and a dummy `api_key`.
+### 3. Changelog & release checklist
+- Adopt Conventional Commits (`feat:`, `fix:`, `docs:`) or equivalent; generate changelog with `git cliff` or manual notes.
+- Final release checklist example:
+  1. Run `uv run pytest --cov` + `schemathesis` + `ruff` + `mypy`.
+  2. Build Docker images (`docker compose build`).
+  3. Run smoke tests (`docker compose run api uv run pytest tests/smoketests`).
+  4. Tag release (`git tag -a v0.3.0 -m "EASS EX3"`).
+  5. Publish docs (`uv run mkdocs build && netlify deploy` or similar).
 
----
+### 4. MCP teaser
+Preview how today’s deterministic responses feed directly into the optional MCP workshop (tool endpoints for agents). Encourage teams to read `sessions/optional/mcp.md` before elective session.
 
-## Break (10 Minutes)
-Launch the shared [10-minute timer](https://e.ggtimer.com/10minutes), celebrate progress, and return ready for Part C.
-
----
-
-## Part C – Hands-on Lab 2 (45 Minutes)
-### Readiness Checklist
- Provide teams with the following list and check off items together:
-- `docker compose up --build` succeeds on a clean machine.
-- `.env.example` documents required secrets.
-- README explains setup, tests, AI assistance, and tool endpoint usage.
-- Automated tests pass (`uv run pytest -q`).
-- Advanced feature works end-to-end (async job, auth, or observability).
-- Optional: metrics endpoint or structured logs accessible through Compose.
-- AWS Academy certificates (Compute/Storage/Databases) were uploaded by **Tue Dec 16, 2025** (or the make-up plan is in motion).
-- Verify the tool endpoint directly:
-  ```bash
-  curl -X POST http://localhost:8000/tool/recommend-movie     -H "Content-Type: application/json"     -H "Authorization: Bearer $TOKEN"     -d '{"payload": {"user_id": 42, "limit": 3}}'
-  ```
-- If using Docker Compose, run a full-system check:
-  ```bash
-  docker compose up --build
-  curl -X POST http://localhost:8080/tool/recommend-movie     -H "Content-Type: application/json"     -H "Authorization: Bearer $TOKEN"     -d '{"payload": {"user_id": 42, "limit": 3}}'
-  docker compose down
-  ```
-  ```
-
-### Demo Rehearsal
-- Each team runs through a three-minute milestone presentation:
-  1. Problem solved.
-  2. Architecture (show Compose services).
-  3. Advanced feature demo.
-  4. Next steps before Feb 10 final submission.
-
-### Support Planning
-- Schedule office hours for the final stretch.
-- Encourage teams to list remaining tasks in their project tracker.
-
-## Closing Circle Prompts
-- “What concept felt mysterious at the start but now makes sense?”
-- “How will you keep practicing after this course?”
-- “What feedback do you have for the next cohort?”
+## Closing Circle
+- Share one capability you can now ship with confidence (e.g., async pipelines, secure auth, containers).
+- Commit to final EX3 deliverable timeline.
+- Celebrate wins—this wraps the 12-week reboot!
 
 ## Troubleshooting
-- If the tool endpoint requires authentication, remind teams to create a dedicated API token user or to explain how to obtain a token in the README.
-- When `curl` fails with 422, check whether the JSON used the `payload` wrapper (because `embed=True`).
-- If Compose logs show stale data, remind teams to prune Docker volumes (`docker compose down -v`) and restart.
-- If `$TOKEN` is empty, rerun the login `curl` command and export the value again.
-- When LM Studio is not running, start it before executing `scripts/ask_tool.py` or skip the optional demo.
-- For vLLM on macOS, keep models tiny and prompts short; see Session 08 for Docker startup commands.
+- **ETag mismatches** → ensure `ETag` computed on canonical JSON (sorted keys). Consider `json.dumps(..., sort_keys=True)`.
+- **Pre-commit slow** → use `--hook-stage manual` for heavy hooks, or run `uv run ruff --watch` during dev.
+- **CSV export encoding issues** → enforce UTF-8 and escape commas if titles contain them (use `csv` module if needed).
 
-## Student Success Criteria
-- `/tool/recommend-movie` returns deterministic JSON for both success and error cases.
-- Documentation includes copy-paste-ready examples of requests and responses.
-- Teams feel ready for the Jan 20 milestone demo and know the next steps for the final submission.
-- AWS module submissions confirmed (Dec 16 deadline met) or escalated for make-up.
-
-## Note on Authorization for Tool Endpoint
-If you did not implement Session 11 security, temporarily remove the dependency from the tool route:
-```python
-@app.post("/tool/recommend-movie")
-async def tool_recommend_movie(payload: ToolRecommendation) -> dict[str, object]:
-    # same logic as above, without a user dependency
-    ...
-```
-Reintroduce the `require_role("editor")` dependency once JWT auth is in place.
-
-## AI Prompt Kit (Copy/Paste)
-- “Design a deterministic tool endpoint for the movie service that accepts `{user_id, limit}` and returns `{status,data,error}` with recommendations.”
-- “Prepare a milestone readiness checklist for a two-service Docker Compose stack (api + nginx) including `.env.example`, health checks, tests, and documentation.”
-- “Write a curl command that calls a protected POST endpoint with a Bearer token and JSON body, and then parse the JSON with `jq` to extract the `id`.”
-
-## Quick Reference (External Search / ChatGPT)
-- **Google:** `FastAPI tool endpoint deterministic response`
-- **ChatGPT prompt:** “Provide a 5-point team readiness checklist before a software milestone demo.”
+## AI Prompt Seeds
+- “Add pagination, total count headers, and OpenAPI examples to a FastAPI list endpoint.”
+- “Implement conditional GET with ETag/If-None-Match for a JSON response.”
+- “Generate a release checklist covering tests, Docker build, documentation, and tagging.”

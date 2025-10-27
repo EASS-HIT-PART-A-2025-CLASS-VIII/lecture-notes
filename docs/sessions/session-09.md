@@ -1,270 +1,176 @@
-# Session 09 – Async Jobs and Recommendation Refresh
+# Session 09 – Async Recommendation Refresh
 
-- **Date:** Monday, Dec 29, 2025
-- **Theme:** Keep the movie API responsive by offloading recommendation rebuilds to background tasks and making clients resilient.
+- **Date:** Monday, Jan 5, 2026
+- **Theme:** Move the recommendation refresh pipeline to async, add retries/backoff, and guard against duplicate work with idempotency keys.
 
 ## Learning Objectives
-- Distinguish between blocking and non-blocking operations in web services.
-- Schedule background jobs using FastAPI’s `BackgroundTasks` to regenerate recommendations.
-- Implement client-side retry logic with backoff and understand idempotency.
+- Call FastAPI endpoints with `httpx.AsyncClient` using `ASGITransport` for in-process tests.
+- Introduce bounded concurrency with `asyncio.Semaphore` and implement retry/backoff policies (`anyio`, `tenacity`).
+- Add idempotency keys to POST requests to avoid double-processing and design resilience tests around them.
+- Instrument async flows with trace IDs and metrics hooks for future observability.
+
+## Before Class – Async Preflight (JiTT)
+- Install async tooling:
+  ```bash
+  uv add "httpx==0.*" "anyio==4.*" "tenacity==9.*"
+  ```
+- Review Python’s `asyncio` basics (LMS primer) and jot one question about concurrency hazards.
+- Ensure EX3 repository is cloned and `docker compose up` works locally; we will extend it next week.
 
 ## Agenda
 | Segment | Duration | Format | Focus |
 | --- | --- | --- | --- |
-| Warm-up chat | 10 min | Discussion | Share holiday wins and one reliability failure you have seen |
-| Async fundamentals | 20 min | Talk + diagrams | Blocking vs. non-blocking, event loop basics |
-| Reliability vocabulary | 15 min | Talk | Retries, backoff, idempotency, graceful shutdown |
-| Lab 1 | 45 min | Guided coding | Background task to rebuild movie recommendations |
-| Break | 10 min | — | Launch [10-minute timer](https://e.ggtimer.com/10minutes) and reset |
-| Lab 2 | 45 min | Guided coding | Add retries, Redis-ready hooks, and graceful shutdown |
-| EX3 preview | 10 min | Talk | Describe advanced feature options |
+| Check-in & EX3 kickoff | 10 min | Discussion | Share project scope and reliability concerns. |
+| Async primer | 18 min | Talk + whiteboard | Event loop, async/await, cooperative multitasking, pitfalls. |
+| Micro demo: AsyncClient + ASGITransport | 5 min | Live demo | Call FastAPI without network via `httpx.ASGITransport`. |
+| Reliability patterns | 12 min | Talk | Retries, circuit breakers, idempotency keys, tracing. |
+| **Part B – Lab 1** | **45 min** | **Guided coding** | **Async recommendation job with bounded concurrency + retries.** |
+| Break | 10 min | — | Launch the shared [10-minute timer](https://e.ggtimer.com/10minutes). |
+| **Part C – Lab 2** | **45 min** | **Guided testing** | **Async tests, idempotency guarantees, instrumentation.** |
+| Wrap-up | 10 min | Discussion | Next steps for EX3 milestone, logging TODOs, Redis preview.
 
-## Teaching Script – Async Overview
-1. Draw two timelines: blocking recomputation vs. async rebuild.
-2. Explain why recommendation models (ALS) can run in the background after ratings arrive.
-3. Define key terms: **idempotency**, **backoff**, **graceful shutdown**.
-4. Set context for Exercise 3: one advanced feature pathway is “Async recommendation refresh”. Today’s lab seeds that work.
+## Part A – Theory Highlights
+1. **Event loop refresher:** tasks share a thread, await I/O, avoid CPU-heavy work. Mention `asyncio.create_task`, `gather`, `Semaphore`.
+2. **Retry/backoff:** exponential vs. jitter, idempotent vs. non-idempotent operations, using `tenacity` decorators.
+3. **Idempotency keys:** Accept `Idempotency-Key` header, store processed keys (in-memory or Redis), and short-circuit duplicates.
+4. **Instrumentation:** Keep `X-Trace-Id` consistent; plan to emit metrics (Session 10) using Prometheus/Redis.
 
-## Part B – Hands-on Lab 1 (45 Minutes) – Background Recommendation Task
-### Dependencies
-Install numerical helpers if you have not already (Prompt 2 from Session 08):
-```bash
-uv add numpy
-```
-
-### Update `app/recommender.py`
-> **Note:** Session 05’s repository now includes `list_ratings()` to expose raw rating rows for the recommender.
-Ensure the module exposes a builder that returns a mapping from user id to ranked movie ids:
+## Part B – Lab 1 (45 Minutes)
+### 1. Async recommendation service (`app/recommendation.py`)
 ```python
-from collections import defaultdict
-from typing import Dict, Iterable, List
+from __future__ import annotations
 
-import numpy as np
-
-# In-memory cache built by Session 09 background job
-MODEL_CACHE: Dict[int, List[int]] = {}
-
-
-def build_model(ratings: Iterable[dict]) -> Dict[int, List[int]]:
-    """Very small ALS-style approximation using NumPy outer products."""
-    by_user: dict[int, dict[int, int]] = defaultdict(dict)
-    for row in ratings:
-        by_user[int(row["user_id"])][int(row["movie_id")] ] = int(row["score"])
-
-    if not by_user:
-        MODEL_CACHE.clear()
-        return MODEL_CACHE
-
-    # Build rating matrix with simple normalization
-    user_ids = sorted(by_user.keys())
-    movie_ids = sorted({movie_id for ratings_for_user in by_user.values() for movie_id in ratings_for_user})
-    matrix = np.zeros((len(user_ids), len(movie_ids)))
-    for ui, user_id in enumerate(user_ids):
-        for mj, movie_id in enumerate(movie_ids):
-            matrix[ui, mj] = by_user[user_id].get(movie_id, 0)
-
-    # Compute user and item factors via naive SVD
-    u, s, vt = np.linalg.svd(matrix, full_matrices=False)
-    scores = np.matmul(np.matmul(u * s, vt), np.ones((len(movie_ids), 1))).reshape(len(user_ids), len(movie_ids))
-
-    MODEL_CACHE.clear()
-    for idx, user_id in enumerate(user_ids):
-        ranked = [movie_ids[i] for i in np.argsort(scores[idx])[::-1]]
-        MODEL_CACHE[user_id] = ranked
-    return MODEL_CACHE
-
-
-def recommend_for_user(ratings: Iterable[dict], user_id: int, k: int = 5) -> list[int]:
-    if MODEL_CACHE:
-        return MODEL_CACHE.get(user_id, [])[:k]
-    # Fallback: build on the fly
-    build_model(ratings)
-    return MODEL_CACHE.get(user_id, [])[:k]
-```
-
-### Wire the Background Task (`app/main.py`)
-```python
-import time
-import uuid
-from fastapi import BackgroundTasks
-
-from app import recommender, repository
-
-TASK_STATUS: dict[str, str] = {}
-
-
-def run_rebuild_task(task_id: str) -> None:
-    TASK_STATUS[task_id] = "running"
-    time.sleep(0.5)  # simulate heavier work / allow rating writes to finish
-    ratings = repository.list_ratings()
-    recommender.build_model(ratings)
-    TASK_STATUS[task_id] = "complete"
-
-
-@app.post("/recommender/rebuild", status_code=202)
-async def rebuild_recommendations(background: BackgroundTasks) -> dict[str, str]:
-    task_id = str(uuid.uuid4())
-    TASK_STATUS[task_id] = "queued"
-    background.add_task(run_rebuild_task, task_id)
-    return {"task_id": task_id, "status": "queued"}
-
-
-@app.get("/recommender/rebuild/{task_id}")
-async def rebuild_status(task_id: str) -> dict[str, str | list[int]]:
-    status = TASK_STATUS.get(task_id, "unknown")
-    sample = recommender.MODEL_CACHE.get(1, [])[:3] if status == "complete" else []
-    return {"task_id": task_id, "status": status, "sample": sample}
-```
-
-### Demo Flow
-1. Start the server:
-   ```bash
-   uv run uvicorn app.main:app --reload
-   ```
-2. Record a few ratings (from Session 06 UI or curl). Example:
-   ```bash
-   curl -X POST http://localhost:8000/ratings      -H "Content-Type: application/json"      -d '{"movie_id": 1, "user_id": 7, "score": 5}'
-   ```
-3. Kick off a rebuild:
-   ```bash
-   curl -X POST http://localhost:8000/recommender/rebuild
-   ```
-4. Poll status until complete:
-   ```bash
-   curl http://localhost:8000/recommender/rebuild/<task_id>
-   ```
-5. Fetch recommendations:
-   ```bash
-   curl http://localhost:8000/recommendations/7?limit=3
-   ```
-
----
-
-## Break (10 Minutes)
-Launch the shared [10-minute timer](https://e.ggtimer.com/10minutes), clear your head, and come back ready for Part C.
-
----
-
-## Part C – Hands-on Lab 2 (45 Minutes) – Reliability Patterns
-### Client-Side Retry Helper (`app/retry_client.py`)
-```python
-import random
-import time
-from typing import Callable
+import asyncio
+from dataclasses import dataclass
+from typing import Iterable
 
 import httpx
+from tenacity import AsyncRetrying, retry_if_exception_type, stop_after_attempt, wait_exponential_jitter
+
+from app.config import Settings
 
 
-def with_backoff(
-    func: Callable[[], httpx.Response],
-    *,
-    retries: int = 5,
-    backoff_factor: float = 0.5,
-    jitter: float = 0.2,
-) -> httpx.Response:
-    for attempt in range(retries):
-        try:
-            response = func()
-            response.raise_for_status()
-            return response
-        except httpx.HTTPError as exc:
-            sleep_for = backoff_factor * (2 ** attempt) + random.uniform(0, jitter)
-            print(f"Attempt {attempt + 1} failed ({exc}). Sleeping {sleep_for:.2f}s")
-            time.sleep(sleep_for)
-    return func()
+@dataclass
+class RecommendationJob:
+    movie_id: int
+    payload: dict[str, int]
+
+
+class RecommendationRefresher:
+    def __init__(self, settings: Settings) -> None:
+        self.settings = settings
+        self.client = httpx.AsyncClient(base_url=settings.api_base_url, timeout=10.0)
+        self._semaphore = asyncio.Semaphore(settings.refresh_max_concurrency)
+
+    async def refresh(self, jobs: Iterable[RecommendationJob]) -> None:
+        tasks = [self._bounded_refresh(job) for job in jobs]
+        await asyncio.gather(*tasks)
+
+    async def _bounded_refresh(self, job: RecommendationJob) -> None:
+        async with self._semaphore:
+            async for attempt in AsyncRetrying(
+                stop=stop_after_attempt(3),
+                wait=wait_exponential_jitter(initial=0.5, max=5.0),
+                retry=retry_if_exception_type(httpx.HTTPError),
+            ):
+                with attempt:
+                    await self._send_job(job)
+
+    async def _send_job(self, job: RecommendationJob) -> None:
+        idempotency_key = f"recommend:{job.movie_id}:{job.payload['user_id']}"
+        response = await self.client.post(
+            "/recommendations/refresh",
+            json=job.payload,
+            headers={
+                "X-Trace-Id": self.settings.trace_id,
+                "Idempotency-Key": idempotency_key,
+            },
+        )
+        response.raise_for_status()
 ```
+Track `refresh_max_concurrency` and `trace_id` via `Settings` (add defaults to config with environment overrides).
 
-Use the helper to poll `/recommender/rebuild/{task_id}` until the job completes.
-
-### Graceful Shutdown
+Update `app/config.py` (from Session 03) with async-specific settings:
 ```python
-@app.on_event("shutdown")
-def on_shutdown() -> None:
-    if any(status == "running" for status in TASK_STATUS.values()):
-        print("Warning: recommendation rebuild still running; consider persisting interim state")
+class Settings(BaseSettings):
+    # existing fields...
+    api_base_url: str = "http://localhost:8000"
+    refresh_max_concurrency: int = 4
+    trace_id: str = "recommend-refresh"
 ```
-Discuss how a production system might persist the task state (Redis/DB) before shutdown.
 
-### Redis Preview (Optional)
-If time allows, show how to cache `recommender.MODEL_CACHE` in Redis:
-```bash
-uv add redis
-```
+### 2. Async CLI trigger (`scripts/refresh.py`)
 ```python
-import redis
+import asyncio
+import typer
 
-redis_client = redis.Redis(host="localhost", port=6379, decode_responses=True)
+from app.config import Settings
+from app.recommendation import RecommendationJob, RecommendationRefresher
 
-# Inside run_rebuild_task
-def run_rebuild_task(task_id: str) -> None:
-    TASK_STATUS[task_id] = "running"
-    ratings = repository.list_ratings()
-    model = recommender.build_model(ratings)
-    redis_client.set("recommendations", json.dumps(model))
-    TASK_STATUS[task_id] = "complete"
+app = typer.Typer(help="Async recommendation refresh")
+
+
+@app.command()
+def run(limit: int = 10) -> None:
+    settings = Settings()
+    jobs = [RecommendationJob(movie_id=i, payload={"movie_id": i, "user_id": 1}) for i in range(limit)]
+    refresher = RecommendationRefresher(settings)
+    asyncio.run(refresher.refresh(jobs))
+
+
+if __name__ == "__main__":
+    app()
 ```
-Docker Compose wiring happens in Session 10.
+Show logs with trace IDs and idempotency keys for each request.
 
-## Exercise 3 Preview
-- **Assigned:** Monday, Jan 5, 2026.
-- **Milestone demo:** Tuesday, Jan 20, 2026.
-- **Final due:** Tuesday, Feb 10, 2026.
-- Advanced feature options: async recommendation job (today), JWT auth (Session 11), observability (Session 10).
-
-## Troubleshooting
-- If the task never runs, verify `run_rebuild_task` is synchronous and you are not `await`-ing it inside the endpoint.
-- When status stays `queued`, ensure `background.add_task(run_rebuild_task, task_id)` is reached (no earlier exception).
-- If retries hammer the endpoint, lower `retries` or increase `backoff_factor`.
-
-## Student Success Criteria
-- POST `/recommender/rebuild` returns immediately with a task id.
-- Polling `/recommender/rebuild/{task_id}` moves from `queued` → `running` → `complete`.
-- `/recommendations/{user_id}` returns movie ids influenced by the rebuild.
-
-## Quick Test to Verify the Background Task
-Create `tests/test_recommender_task.py`:
+## Part C – Lab 2 (45 Minutes)
+### 1. Async tests with `ASGITransport`
 ```python
-import time
-from fastapi.testclient import TestClient
+import asyncio
+
+import httpx
+import pytest
 
 from app.main import app
+from app.recommendation import RecommendationJob, RecommendationRefresher
+from app.config import Settings
 
-client = TestClient(app)
 
+@pytest.mark.anyio
+async def test_refresh_hits_endpoint(monkeypatch):
+    transport = httpx.ASGITransport(app=app)
+    client = httpx.AsyncClient(transport=transport, base_url="http://testserver")
 
-def test_rebuild_flow():
-    # seed a custom rating
-    movie = client.post(
-        "/movies",
-        json={"title": "Async Demo", "year": 2024, "genre": "Sci-Fi"},
-    ).json()
-    client.post(
-        "/ratings",
-        json={"movie_id": movie["id"], "user_id": 88, "score": 5},
-    )
-    task_id = client.post("/recommender/rebuild").json()["task_id"]
+    monkeypatch.setattr("app.recommendation.httpx.AsyncClient", lambda *args, **kwargs: client)
 
-    deadline = time.time() + 5
-    while time.time() < deadline:
-        status = client.get(f"/recommender/rebuild/{task_id}").json()["status"]
-        if status == "complete":
-            break
-        time.sleep(0.2)
+    settings = Settings(refresh_max_concurrency=2, api_base_url="http://testserver", trace_id="async-test")
+    refresher = RecommendationRefresher(settings)
 
-    assert client.get(f"/recommender/rebuild/{task_id}").json()["status"] == "complete"
-    recs = client.get("/recommendations/88?limit=1").json()
-    assert movie["id"] in recs
+    job = RecommendationJob(movie_id=1, payload={"movie_id": 1, "user_id": 42})
+    await refresher.refresh([job])
 ```
-Run:
-```bash
-uv run pytest -q
-```
+Explain `pytest.mark.anyio` and why we re-use ASGI transport to avoid network calls.
 
-## AI Prompt Kit (Copy/Paste)
-- “Add a `/recommender/rebuild` endpoint that enqueues a background task, stores status, and updates an in-memory recommendation cache.”
-- “Write a Python helper that polls an endpoint with exponential backoff and jitter, logging each attempt.”
-- “Explain how to make `/recommender/rebuild` idempotent using a `X-Task-Id` header or similar token.”
+### 2. Idempotency guard test
+Design FastAPI endpoint storing processed keys (in-memory for now). Write test to send duplicate job and assert second response returns 202 or similar without duplicate work.
 
-## Quick Reference (External Search / ChatGPT)
-- **Google:** `FastAPI BackgroundTasks recommendation system`
-- **ChatGPT prompt:** “Describe exponential backoff with jitter for students building a movie recommendation API.”
+### 3. Reliability metrics (stretch)
+- Emit `logfire.counter("recommendation.retry", ...)` inside retry loop.
+- Record durations with `logfire.timer()` context manager for future dashboards.
+
+### 4. Failure injection
+Use `pytest` to monkeypatch the endpoint and raise HTTP 500 on first attempt, confirm retry hits and eventual success.
+
+## Wrap-up & Next Steps
+- ✅ Async refresher, retries with jitter, idempotency keys, async tests.
+- Prep for Session 10: bring Redis installed (`brew install redis` or `docker run redis`), and review Docker Compose basics.
+
+## Troubleshooting
+- **`RuntimeError: Event loop is closed`** → avoid nested `asyncio.run`; use `pytest.mark.anyio` and `asyncio.get_event_loop_policy().new_event_loop()` if needed.
+- **Idempotency store resets** → persist keys in Redis (Session 10) or file for long-running jobs.
+- **Un-awaited coroutine warnings** → ensure every async call is awaited; use `pytest.raises` with async context for exceptions.
+
+## AI Prompt Seeds
+- “Write an async refresher that batches POST requests with bounded concurrency and retries using tenacity.”
+- “Show how to use `httpx.AsyncClient` with `ASGITransport` in tests.”
+- “Design an idempotency key strategy for POST `/recommendations/refresh` with sample tests.”

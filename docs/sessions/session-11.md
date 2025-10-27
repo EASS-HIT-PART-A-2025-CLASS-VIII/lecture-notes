@@ -1,278 +1,232 @@
 # Session 11 – Security Foundations
 
-- **Date:** Monday, Jan 12, 2026
-- **Theme:** Introduce authentication, authorization, and safe secret handling for the FastAPI service.
+- **Date:** Monday, Jan 19, 2026
+- **Theme:** Secure the movie service with proper auth, secrets hygiene, and threat modeling.
 
 ## Learning Objectives
-- Explain the difference between authentication (who) and authorization (what).
-- Implement a simple JWT-based login flow in FastAPI.
-- Protect routes with role-based access control and add security-focused tests.
+- Hash passwords with `passlib[bcrypt]`, issue JWTs (`pyjwt`) with expiration, issuer, and audience claims.
+- Apply OWASP API Top 3 mitigations: authentication, input validation, secret management.
+- Audit `.env.example`, rotate keys, and document secure defaults for Docker/Compose.
+- Write security-focused tests (401/403 paths, JWT expiry, secret exposure checks).
+
+## Before Class – Security Preflight (JiTT)
+- Install dependencies:
+  ```bash
+  uv add "passlib[bcrypt]" "pyjwt==2.*"
+  ```
+- Rotate any hard-coded secrets in your repo; ensure `.env` is gitignored and `.env.example` is up to date.
+- Review OWASP API Security Top 10 summary (LMS) and bring one question.
+- Optional: scan your repo with `trufflehog filesystem --exclude .git` to confirm secrets hygiene.
 
 ## Agenda
 | Segment | Duration | Format | Focus |
 | --- | --- | --- | --- |
-| Warm-up question | 10 min | Discussion | “What security mishap have you heard about recently?” |
-| Security overview | 20 min | Talk | Credentials, secrets, HTTPS, principle of least privilege |
-| JWT primer | 15 min | Talk + whiteboard | Token structure (header, payload, signature), expiration |
-| Lab 1 | 45 min | Guided coding | Implement login and token creation |
-| Break | 10 min | — | Launch [10-minute timer](https://e.ggtimer.com/10minutes) and reset |
-| Lab 2 | 45 min | Guided coding | Protect endpoints, write tests, load secrets from `.env` |
-| EX3 progress check | 10 min | Discussion | Ensure teams are on track for Jan 20 milestone |
-| AWS reminder | 5 min | Announcement | Confirm AWS certificates were submitted by Dec 16 (or note make-up steps) |
+| Threat model warm-up | 10 min | Discussion | Identify assets, attackers, entry points. |
+| AuthN/AuthZ walkthrough | 18 min | Talk + code | Password hashing, JWT issuance, role-based access. |
+| Micro demo: JWT decode | 5 min | Live demo | `uv run python -m jwt decode` and explain claims. |
+| Secrets hygiene & OWASP | 12 min | Talk | .env discipline, least privilege, input validation, logging redaction. |
+| **Part B – Lab 1** | **45 min** | **Guided coding** | **Add password hashing, login endpoint, JWT tokens.** |
+| Break | 10 min | — | Launch the shared [10-minute timer](https://e.ggtimer.com/10minutes). |
+| **Part C – Lab 2** | **45 min** | **Guided hardening** | **Role-based guards, security tests, secret scanning.** |
+| Wrap-up | 10 min | Q&A | Prep for Session 12 (tool-friendly APIs), confirm EX3 security tasks.
 
-## Teaching Script – Security Basics
-1. “Security is about keeping the right people in and the wrong people out.”
-2. Clarify definitions:
-   - Authentication: verify identity (username/password, OAuth, etc.).
-   - Authorization: decide what an authenticated user can do.
-3. Describe JWT structure using a simple example: `header.payload.signature`, base64-encoded.
-4. Emphasize safe secret handling: `.env` files, environment variables, never committing secrets to Git.
-5. Remind students to double-check that all AWS certificates were uploaded by **Tuesday, Dec 16, 2025**. Anyone missing proof should update Canvas and notify the instructor immediately.
+## Part A – Theory Highlights
+1. **Threat modeling:** assets (user data, movie catalog), adversaries (students, bots), attack surface (login, recommendations, admin endpoints).
+2. **Password storage:** never store plaintext; use `passlib.hash.bcrypt`. Mention pepper vs salt, password policies.
+3. **JWT anatomy:** header, payload, signature; include `exp`, `iat`, `iss`, `aud`, `roles`. Keep tokens short-lived.
+4. **Secrets hygiene:** `.env` vs `.env.example`, `docker compose` secrets, GitHub Actions secrets, never log tokens.
+5. **OWASP highlights:** Broken auth, excessive data exposure, lack of rate limiting (already addressed). Tie back to previous sessions.
 
-## Part B – Hands-on Lab 1 (45 Minutes)
-### Install Dependencies
-```bash
-uv add "python-jose[cryptography]" "passlib[bcrypt]" python-dotenv
-```
-
-### Environment Setup
-Create `.env` (not committed to Git):
-```
-SECRET_KEY=change-me-to-a-long-random-string
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=60
-```
-
-### Security Module (`app/security.py`)
-Create `app/security.py` with all security logic in one place:
+## Part B – Lab 1 (45 Minutes)
+### 1. User model & hashing (`app/security.py`)
 ```python
-import os
 from datetime import datetime, timedelta
-from typing import Dict
+from typing import Optional
 
-from dotenv import load_dotenv
-from jose import jwt
+import jwt
 from passlib.context import CryptContext
 
-from app.models import User
-
-
-load_dotenv()
-SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret")
-ALGORITHM = os.getenv("ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+from app.config import Settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-fake_users_db: Dict[str, dict[str, str]] = {
-    "student": {
-        "username": "student",
-        "full_name": "Student User",
-        "hashed_password": pwd_context.hash("secret"),
-        "role": "viewer",
-        "disabled": False,
-    },
-    "teacher": {
-        "username": "teacher",
-        "full_name": "Teacher User",
-        "hashed_password": pwd_context.hash("classroom"),
-        "role": "editor",
-        "disabled": False,
-    },
-}
-
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
-
-
-def get_password_hash(password: str) -> str:
+def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
 
-def get_user(username: str) -> User | None:
-    user_dict = fake_users_db.get(username)
-    return User(**user_dict) if user_dict else None
+def verify_password(plain_password: str, hashed: str) -> bool:
+    return pwd_context.verify(plain_password, hashed)
 
 
-def authenticate_user(username: str, password: str) -> User | None:
-    user = get_user(username)
-    if not user:
+def create_access_token(
+    *,
+    subject: str,
+    settings: Settings,
+    expires_delta: Optional[timedelta] = None,
+    roles: Optional[list[str]] = None,
+) -> str:
+    now = datetime.utcnow()
+    expire = now + (expires_delta or timedelta(minutes=30))
+    payload = {
+        "sub": subject,
+        "iat": now.timestamp(),
+        "exp": expire.timestamp(),
+        "iss": settings.jwt_issuer,
+        "aud": settings.jwt_audience,
+        "roles": roles or ["student"],
+    }
+    return jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
+```
+Add new settings (JWT secret, issuer, audience, token expiry). Store defaults in `.env.example` and populate `.env` locally.
+
+Update `app/config.py`:
+```python
+class Settings(BaseSettings):
+    # existing fields...
+    jwt_secret: str = "change-me"
+    jwt_issuer: str = "movie-service"
+    jwt_audience: str = "movie-clients"
+    jwt_expiry_minutes: int = 30
+```
+
+### 2. Auth router (`app/routes/auth.py`)
+```python
+from datetime import timedelta
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
+
+from app.config import Settings
+from app.security import create_access_token, verify_password
+
+router = APIRouter(prefix="/token", tags=["auth"])
+
+_FAKE_USERS = {
+    "teacher": {
+        "username": "teacher",
+        "hashed_password": hash_password("classroom"),
+        "roles": ["editor"],
+    }
+}
+
+
+def authenticate(username: str, password: str):
+    record = _FAKE_USERS.get(username)
+    if not record or not verify_password(password, record["hashed_password"]):
         return None
-    if not verify_password(password, fake_users_db[username]["hashed_password"]):
-        return None
-    return user
+    return record
 
 
-def create_access_token(data: dict[str, str], expires_delta: timedelta | None = None) -> str:
-    to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-```
-
-### User Model and Store
-Add to `app/models.py`:
-```python
-from pydantic import BaseModel
-
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-
-class TokenData(BaseModel):
-    username: str | None = None
-
-
-class User(BaseModel):
-    username: str
-    full_name: str
-    disabled: bool = False
-    role: str = "viewer"
-```
-
-The `app/security.py` file provides user storage, hashing, verification, and token creation.
-
-### Login Endpoint
-In `app/main.py`:
-```python
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from jose import JWTError, jwt
-from fastapi import Depends, HTTPException
-from app.security import authenticate_user, create_access_token, SECRET_KEY, ALGORITHM, get_user
-from app.models import Token, User
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-
-@app.post("/token", response_model=Token)
-async def login(form_data: OAuth2PasswordRequestForm = Depends()) -> Token:
-    user = authenticate_user(form_data.username, form_data.password)
+@router.post("", response_model=dict)
+def login(
+    form: OAuth2PasswordRequestForm = Depends(),
+    settings: Settings = Depends(),
+) -> dict[str, str]:
+    user = authenticate(form.username, form.password)
     if not user:
-        raise HTTPException(status_code=401, detail="Incorrect username or password")
-    access_token = create_access_token({"sub": user.username, "role": user.role})
-    return Token(access_token=access_token, token_type="bearer")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+
+    access_token = create_access_token(
+        subject=user["username"],
+        roles=user["roles"],
+        settings=settings,
+        expires_delta=timedelta(minutes=settings.jwt_expiry_minutes),
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
 ```
+Mount router in `app/main.py` and guard protected endpoints.
 
----
-
-## Break (10 Minutes)
-Launch the shared [10-minute timer](https://e.ggtimer.com/10minutes), take a short walk, and come back ready for Part C.
-
----
-
-## Part C – Hands-on Lab 2 (45 Minutes)
-### Protected Routes
-Add helpers:
+### 3. Dependency for protected routes
 ```python
-async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Could not validate credentials")
-    username: str | None = payload.get("sub")
-    if username is None:
-        raise HTTPException(status_code=401, detail="Invalid token payload")
-    user = get_user(username)
-    if user is None:
-        raise HTTPException(status_code=401, detail="User not found")
-    return user
+from fastapi import Depends, HTTPException, Security, status
+from fastapi.security import OAuth2PasswordBearer
+
+from app.config import Settings
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 
 
-def require_role(role: str):
-    def role_checker(user: User = Depends(get_current_user)) -> User:
-        if user.role != role:
-            raise HTTPException(status_code=403, detail="Forbidden")
-        return user
-    return role_checker
+def require_role(*allowed_roles: str):
+    def _inner(token: str = Security(oauth2_scheme), settings: Settings = Depends()):
+        try:
+            payload = jwt.decode(
+                token,
+                settings.jwt_secret,
+                algorithms=["HS256"],
+                audience=settings.jwt_audience,
+                issuer=settings.jwt_issuer,
+            )
+        except jwt.PyJWTError as exc:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token") from exc
+
+        roles = set(payload.get("roles", []))
+        if not roles.intersection(allowed_roles):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+        return payload
+
+    return _inner
 ```
+Apply `require_role("editor")` to sensitive routes (e.g., recommendation tools, admin updates).
 
-Protect mutating endpoints:
-```python
-@app.post("/movies", response_model=MovieRead, status_code=201)
-def create_movie(payload: MovieCreate, user: User = Depends(require_role("editor"))) -> MovieRead:
-    return repository.create_movie(payload)
-
-
-@app.post("/ratings", status_code=204)
-def create_rating(payload: RatingCreate, user: User = Depends(require_role("editor"))) -> None:
-    try:
-        repository.add_rating(payload)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-```
-(Apply similar dependencies to PUT/PATCH/DELETE routes.)
-
-### Tests for Security
-Add to `tests/test_security.py`:
+## Part C – Lab 2 (45 Minutes)
+### 1. Security tests (`tests/test_security.py`)
 ```python
 from fastapi.testclient import TestClient
+
 from app.main import app
 
 client = TestClient(app)
 
 
-def test_login_success():
-    response = client.post("/token", data={"username": "teacher", "password": "classroom"})
-    assert response.status_code == 200
-    token = response.json()["access_token"]
-    protected = client.post(
-        "/movies",
-        json={"title": "Secure", "year": 2024, "genre": "Drama"},
-        headers={"Authorization": f"Bearer {token}"},
+def test_login_returns_token():
+    response = client.post(
+        "/token",
+        data={"username": "teacher", "password": "classroom"},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
-    assert protected.status_code == 201
+    assert response.status_code == 200
+    assert "access_token" in response.json()
 
 
-def test_login_failure():
-    response = client.post("/token", data={"username": "teacher", "password": "wrong"})
+def test_protected_endpoint_requires_token():
+    response = client.post("/tool/recommend-movie", json={"payload": {"user_id": 1}})
     assert response.status_code == 401
 
 
-def test_forbidden_for_viewer():
-    token = client.post("/token", data={"username": "student", "password": "secret"}).json()["access_token"]
-    response = client.post(
-        "/movies",
-        json={"title": "Forbidden", "year": 2024, "genre": "Drama"},
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert response.status_code == 403
+def test_token_expiry(monkeypatch):
+    settings = Settings(jwt_expiry_minutes=0)
+    token = create_access_token(subject="user", settings=settings, expires_delta=timedelta(seconds=1))
+    time.sleep(2)
+    response = client.get("/movies", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code in (401, 403)
 ```
+(Remember to import missing modules in actual test file—`time`, `timedelta`, `Settings`, etc.)
 
-### Secrets Handling Recap
-- Remind students to add `.env` to `.gitignore`:
-  ```
-  .env
-  ```
-- Encourage generating strong secrets with `openssl rand -hex 32`.
-- Stress rotating secrets if they ever leak.
+### 2. Secret scanning
+- Run `trufflehog filesystem --exclude .git .` or `gitleaks detect` and screenshot findings (should be clean).
+- Add `make secrets-scan` target for CI.
 
-## EX3 Progress Check
-- Each team states current progress and blockers.
-- Confirm milestone demo (Tue Jan 20) will include:
-  - `docker compose up` working.
-  - Advanced feature (async job, auth, or observability) at least half complete.
-  - README updated with setup instructions and AI usage notes.
+### 3. OWASP checklist
+Update `docs/security-checklist.md` with:
+- Authentication enforced on admin endpoints.
+- Input validation references (Pydantic validators from Sessions 03/05).
+- Rate limiting (Session 10), logging redaction (avoid tokens).
+- Secrets: `.env` variables, GitHub Action secrets, Docker secrets.
+
+### 4. Optional stretch – refresh tokens
+Create `/token/refresh` endpoint issuing new tokens if refresh token valid; store refresh tokens hashed in Redis.
+
+## Wrap-up & Next Steps
+- ✅ Password hashing, JWT issuance, role guards, security tests, secret scanning.
+- Prep for Session 12: finalize documentation, tool-friendly API design, publish `docs/service-contract.md` updates, and gather all EX3 deliverables.
 
 ## Troubleshooting
-- Bcrypt “work factor” errors: ensure `passlib` is installed and not conflicting with system libraries.
-- If tokens never expire, check environment variable parsing and `ACCESS_TOKEN_EXPIRE_MINUTES` value.
-- For invalid token errors, ensure the `Authorization` header uses `Bearer <token>` format.
+- **`bcrypt` missing build prerequisites** → ensure `rust`/`gcc` installed or use prebuilt wheels (should work on macOS/Linux). On Windows/WSL, install `build-essential`.
+- **Invalid JWT** → verify `aud`/`iss` match; align Settings across services (worker, API, CLI).
+- **Token not accepted by Swagger UI** → set OAuth2 config in FastAPI app: `app = FastAPI(swagger_ui_init_oauth={"clientId": "web"})` if needed.
 
-## Student Success Criteria
-- Successful login returns a JWT and allows authorized actions.
-- Protected endpoints reject unauthenticated or low-privilege users with clear errors.
-- Tests confirm authentication and authorization paths for success and failure.
-- Students have verified their AWS submissions made the **Tue Dec 16, 2025** deadline (or completed the make-up plan).
-
-## AI Prompt Kit (Copy/Paste)
-- “Add JWT auth to a FastAPI app: create `/token` (OAuth2PasswordRequestForm), sign HS256 tokens with expiry, and add a dependency to protect write routes. Include tests for login success, login failure, and forbidden access for a viewer role.”
-- “Write a `.env.example` for FastAPI security settings (SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES) and a startup snippet that loads environment variables with python-dotenv.”
-- “Explain risks of storing plaintext passwords and demonstrate hashing with `passlib[bcrypt]` (hash + verify) in a short code example.”
-
-## Quick Reference (External Search / ChatGPT)
-- **Google:** `FastAPI JWT tutorial python jose`
-- **ChatGPT prompt:** “Explain authentication vs authorization in 100 words geared toward undergrad students.”
+## AI Prompt Seeds
+- “Generate FastAPI login endpoint that hashes passwords with passlib, returns JWT with exp/iss/aud claims.”
+- “Write pytest tests for 401/403 scenarios against a JWT-protected endpoint.”
+- “Create a security checklist covering OWASP API Top 3 for a FastAPI service.”

@@ -14,6 +14,17 @@ Learners finish with:
 
 ---
 
+## Before Workshop – Preflight (JiTT)
+- Install dependencies ahead of time:
+  ```bash
+  uv add "mcp[cli]" "fastapi==0.115.*" "uvicorn==0.*" "httpx==0.*" "logfire==0.*"
+  ```
+- Make sure Docker is logged in to `zozo001` and `uv run python -m mcp --help` succeeds.
+- Review the Logfire FastMCP guide (link in LMS) and note how to toggle telemetry on/off (`LOGFIRE_SEND_OFFLINE=true|false`).
+- Export NOAA API policy reminder: include `User-Agent` header with contact info.
+
+---
+
 ## Agenda (3×45 Minutes)
 | Segment | Duration | Format | Focus |
 | --- | --- | --- | --- |
@@ -136,6 +147,22 @@ if __name__ == "__main__":
     mcp.run(transport="stdio")
 ```
 
+### 4a. Optional telemetry toggle (Logfire)
+Add `telemetry.py`:
+```python
+import os
+
+import logfire
+
+
+def configure() -> None:
+    enabled = os.getenv("LOGFIRE_ENABLED", "false").lower() == "true"
+    logfire.configure(
+        service_name="weather-mcp",
+        send_to_logfire=enabled,
+    )
+```
+Call `telemetry.configure()` near the top of `weather_mcp.py`. This mirrors the observability discipline from Session 07 and allows instructors to switch telemetry on/off via environment variable.\n+
 ### 5. `app.py`
 ```python
 import contextlib
@@ -235,6 +262,9 @@ __pycache__/
      if __name__ == "__main__":
          asyncio.run(main())
      ```
+5. **Contract smoke tests**
+   - Create `tests/test_weather_mcp.py` that mounts `app:app` with `httpx.ASGITransport` and asserts deterministic tool payloads.
+   - Optional: `uv run schemathesis run http://localhost:8000/openapi.json --checks status_code_conformance --dry-run` to mirror Session 10 contract gates.
 
 ---
 

@@ -1,404 +1,222 @@
 # Session 05 – Movie Service Persistence with SQLite
 
 - **Date:** Monday, Dec 1, 2025
-- **Theme:** Turn the in-memory demo into a small Movie Recommendation backend powered by SQLite so it is ready for a frontend and recommendation logic in later sessions.
+- **Theme:** Replace the in-memory repository with SQLModel + SQLite, add migrations, and keep tests green.
 
 ## Learning Objectives
-- Model movies and user ratings with SQLModel and SQLite.
-- Provide REST endpoints for browsing movies and recording ratings.
-- Seed the database with starter data that later sessions (Streamlit UI, Redis caching, ALS) will build on.
-- Adjust automated tests to validate movie and rating behaviour.
+- Model movies and ratings with SQLModel, including relationships and uniqueness constraints.
+- Run Alembic migrations to manage schema changes and seed baseline data.
+- Implement repository functions that use dependency-injected sessions, respecting trace IDs and validation rules.
+- Write tests that spin up a temporary SQLite database per test (fixtures preview for Session 07).
+
+## Before Class – Persistence Preflight (JiTT)
+- Install dependencies:
+  ```bash
+  uv add "sqlmodel==0.0.22" "alembic==1.*" "typer==0.*"
+  ```
+- Create `alembic.ini` with `uv run alembic init migrations` if you want to peek ahead; note blockers for class.
+- Review SQLite basics (3-minute cheat sheet linked in LMS) and write down one question about indexes or foreign keys.
+- Optional: run the micro demo “SQLModel in-memory insert/select (5 lines)” from the quick-demos list so students arrive warmed up.
 
 ## Agenda
 | Segment | Duration | Format | Focus |
 | --- | --- | --- | --- |
-| Warm start & EX1 mini demos | 15 min | Student lightning talks | Show CRUD progress and share blockers |
-| Persistence primer | 20 min | Talk + sketching | Why movies + ratings need relational tables |
-| Architecture mini-lesson | 10 min | Talk | API layer vs. data layer vs. upcoming recommendation logic |
-| AWS module check-in | 5 min | Discussion | Confirm Compute module progress; remind Storage soft deadline (Dec 9) |
-| Lab 1 | 45 min | Guided coding | Build `Movie` + `Rating` tables, seed sample catalog |
-| Break | 10 min | — | Launch [10-minute timer](https://e.ggtimer.com/10minutes) and reset |
-| Lab 2 | 45 min | Guided coding | Implement endpoints, rating aggregation, and tests |
-| EX2 announcement | 10 min | Talk | Preview the Movie UI build in next session |
+| Recap & intent | 7 min | Discussion | What worked when adding pagination or feature flags to EX1? Any SQLite fears? |
+| SQLModel primer | 20 min | Talk + notebook | Tables, models, relationships, ordering, uniqueness. |
+| Micro demo: SQLModel insert/select | 3 min | Live demo (≤120 s) | `Session.add`, `Session.exec`, `.all()` in 5 lines. |
+| Alembic workflow | 15 min | Talk + whiteboard | `env.py`, autogenerate, upgrade/downgrade, seeding. |
+| **Part B – Lab 1** | **45 min** | **Guided coding** | **Wire SQLModel engine, models, migrations.** |
+| Break | 10 min | — | Launch the shared [10-minute timer](https://e.ggtimer.com/10minutes). |
+| **Part C – Lab 2** | **45 min** | **Guided testing** | **Repository + FastAPI integration tests, fixtures preview.** |
+| Wrap-up & EX1 milestone | 10 min | Q&A | Next steps: indexes, seeding CLI, Alembic discipline. |
 
-## Teaching Script – Why Persistence Matters for Movies
-1. Start with the problem statement: “We want a movie recommendation API that remembers titles, genres, and student ratings even after a restart.”
-2. Ask: “If we reboot the server, what happens to our in-memory movies list?” Let students observe the data loss.
-3. Introduce SQLite as “a lightweight database that keeps our catalog on disk—ideal for laptops and class projects.”
-4. Explain SQLModel: “It gives us typed models for movies/ratings and creates tables automatically.”
-5. Draw the flow: Request → FastAPI route → Repository → SQLite tables → (later) Redis cache/ALS.
-6. Set expectations: “By the end of today, we’ll have `/movies`, `/movies/{id}`, `/ratings`, and `/movies/top` backed by SQLite with starter data.”
-7. Remind students about AWS pacing: finish the **Storage** module by **Tuesday, Dec 9, 2025** so the **Tue Dec 16** hard deadline is easy.
-
-```
-FastAPI endpoint (/movies or /ratings)
-        |
-        v
- Repository layer (session 05 code)
-        |
-        v
-   SQLite engine (movies.db on disk)
-        |
-        v
-Downstream features:
-  - Redis cache (Session 10)
-  - Async recommender (Session 09)
-  - Streamlit/React UI (Session 06)
-```
+## Part A – Theory Highlights
+1. **Zoom on `sqlmodel.SQLModel`:** inherits from `pydantic.BaseModel` for validation and `DeclarativeMeta` for SQLAlchemy features. Highlight `table=True` for tables vs. plain models for payloads.
+2. **Relationships:** `Relationship(back_populates=...)`, `Field(foreign_key="ratings.movie_id")`. Stress lazy vs eager loading and why we’ll use `selectinload` later.
+3. **Uniqueness/indexes:** `Field(index=True, unique=True)` for movie titles or slug fields.
+4. **Alembic autogenerate:** show the flow `alembic revision --autogenerate -m "create tables"` → inspect diff → `alembic upgrade head`. Emphasize manual review of migrations.
+5. **Trace IDs & logging:** reuse request-level `X-Trace-Id` when logging DB actions to keep observability consistent.
 
 ## Part B – Hands-on Lab 1 (45 Minutes)
-### Install Packages
-```bash
-cd hello-uv
-uv add sqlmodel sqlalchemy
-mkdir -p app
-```
-
-### Database Module (`app/db.py`)
-Create `app/db.py`:
+### 1. Configure the database engine (`app/db.py`)
 ```python
 from contextlib import contextmanager
-from typing import Callable
+from typing import Iterator
 
-from sqlmodel import SQLModel, create_engine, Session
+from sqlmodel import Session, SQLModel, create_engine
 
 DATABASE_URL = "sqlite:///./movies.db"
-engine = create_engine(
-    DATABASE_URL,
-    echo=False,
-    connect_args={"check_same_thread": False},
-)
+engine = create_engine(DATABASE_URL, echo=False)
 
 
-def init_db(seed_fn: Callable[[Session], None] | None = None) -> None:
-    """Create tables and optionally seed starter movies."""
-    SQLModel.metadata.create_all(engine)
-    if seed_fn:
-        with Session(engine) as session:
-            seed_fn(session)
+def init_db() -> None:
+    SQLModel.metadata.create_all(bind=engine)
 
 
 @contextmanager
-def get_session() -> Session:
-    """Provide a session that commits on success and rolls back on error."""
-    session = Session(engine)
-    try:
+def get_session() -> Iterator[Session]:
+    with Session(engine) as session:
         yield session
-        session.commit()
-    except Exception:
-        session.rollback()
-        raise
-    finally:
-        session.close()
 ```
+Call `init_db()` once from a CLI (below) or during startup for development.
 
-### Models (`app/models.py`)
-Create `app/models.py`:
+### 2. Define models (`app/models.py`)
 ```python
-from datetime import datetime
-from sqlmodel import Field, SQLModel
+from __future__ import annotations
 
-
-class MovieCreate(SQLModel):
-    title: str
-    year: int
-    genre: str
-
-
-class MovieRead(MovieCreate):
-    id: int
-    average_rating: float | None = None
-
-
-class RatingCreate(SQLModel):
-    movie_id: int
-    user_id: int
-    score: int = Field(ge=1, le=5)
-
-
-class MovieRow(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
-    title: str
-    year: int
-    genre: str
-
-
-class RatingRow(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
-    movie_id: int = Field(foreign_key="movierow.id")
-    user_id: int
-    score: int
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-```
-
-### Repository (`app/repository.py`)
-Create `app/repository.py`:
-```python
-from collections.abc import Sequence
-from statistics import mean
 from typing import Optional
 
-from sqlmodel import select
-
-from app.db import get_session
-from app.models import (
-    MovieCreate,
-    MovieRead,
-    MovieRow,
-    RatingCreate,
-    RatingRow,
-)
+from sqlmodel import Field, Relationship, SQLModel
 
 
-def seed_movies(session) -> None:
-    if session.exec(select(MovieRow)).first():
-        return
-    starter_movies = [
-        MovieRow(title="Inception", year=2010, genre="Sci-Fi"),
-        MovieRow(title="The Matrix", year=1999, genre="Sci-Fi"),
-        MovieRow(title="The Godfather", year=1972, genre="Crime"),
-        MovieRow(title="Spirited Away", year=2001, genre="Animation"),
-        MovieRow(title="Black Panther", year=2018, genre="Action"),
-    ]
-    session.add_all(starter_movies)
-    session.commit()
+class Movie(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    title: str = Field(index=True, unique=True)
+    year: int = Field(ge=1900, le=2100)
+    genre: str = Field(default="Unknown", index=True)
+
+    ratings: list["Rating"] = Relationship(back_populates="movie")
 
 
-def list_movies() -> list[MovieRead]:
-    with get_session() as session:
-        rows = session.exec(select(MovieRow)).all()
-        return [MovieRead.model_validate(row) for row in rows]
+class Rating(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    movie_id: int = Field(foreign_key="movie.id")
+    score: int = Field(ge=1, le=5)
 
-
-def get_movie(movie_id: int) -> Optional[MovieRead]:
-    with get_session() as session:
-        row = session.get(MovieRow, movie_id)
-        return MovieRead.model_validate(row) if row else None
-
-
-def create_movie(payload: MovieCreate) -> MovieRead:
-    with get_session() as session:
-        row = MovieRow.model_validate(payload)
-        session.add(row)
-        session.flush()
-        return MovieRead.model_validate(row)
-
-
-def add_rating(payload: RatingCreate) -> None:
-    with get_session() as session:
-        movie = session.get(MovieRow, payload.movie_id)
-        if movie is None:
-            raise ValueError("movie not found")
-        session.add(RatingRow.model_validate(payload))
-
-
-def top_movies(limit: int = 5) -> list[MovieRead]:
-    with get_session() as session:
-        movies = session.exec(select(MovieRow)).all()
-        enriched: list[MovieRead] = []
-        for movie in movies:
-            ratings = session.exec(
-                select(RatingRow).where(RatingRow.movie_id == movie.id)
-            ).all()
-            avg = mean([r.score for r in ratings]) if ratings else None
-            enriched.append(
-                MovieRead(
-                    id=movie.id,
-                    title=movie.title,
-                    year=movie.year,
-                    genre=movie.genre,
-                    average_rating=avg,
-                )
-            )
-        enriched.sort(key=lambda m: (m.average_rating or 0), reverse=True)
-        return enriched[:limit]
-
-
-def list_ratings() -> list[dict]:
-    with get_session() as session:
-        ratings = session.exec(select(RatingRow)).all()
-        return [rating.model_dump() for rating in ratings]
+    movie: Movie = Relationship(back_populates="ratings")
 ```
 
-### Update FastAPI (`app/main.py`)
-Replace the in-memory logic with a movie-focused API:
+### 3. Create Alembic migration
+```bash
+uv run alembic init migrations
+```
+Adjust `env.py` to import `SQLModel.metadata`:
 ```python
-from fastapi import FastAPI, HTTPException
+from app.models import SQLModel
+
+# inside run_migrations_online
+with connectable.connect() as connection:
+    context.configure(connection=connection, target_metadata=SQLModel.metadata)
+```
+Generate first migration:
+```bash
+uv run alembic revision --autogenerate -m "create movie and rating tables"
+uv run alembic upgrade head
+```
+Encourage students to open the migration file and inspect the generated SQL.
+
+### 4. Update repository to use SQLModel (`app/repository.py`)
+```python
+from collections.abc import Iterable
+from typing import Optional
+
+from sqlmodel import Session, select
+
+from .models import Movie, Rating
+
+
+class MovieRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def list(self) -> Iterable[Movie]:
+        statement = select(Movie).order_by(Movie.title)
+        return self.session.exec(statement).all()
+
+    def create(self, *, title: str, year: int, genre: str) -> Movie:
+        movie = Movie(title=title, year=year, genre=genre.title())
+        self.session.add(movie)
+        self.session.commit()
+        self.session.refresh(movie)
+        return movie
+
+    def get(self, movie_id: int) -> Optional[Movie]:
+        return self.session.get(Movie, movie_id)
+
+    def add_rating(self, movie_id: int, score: int) -> Rating:
+        rating = Rating(movie_id=movie_id, score=score)
+        self.session.add(rating)
+        self.session.commit()
+        self.session.refresh(rating)
+        return rating
+```
+
+### 5. Inject session into FastAPI (`app/dependencies.py`)
+```python
+from collections.abc import Generator
+from typing import Annotated
+
+from fastapi import Depends
+
+from .db import get_session
+from .repository import MovieRepository
+
+
+def get_repository() -> Generator[MovieRepository, None, None]:
+    with get_session() as session:
+        yield MovieRepository(session)
+
+RepositoryDep = Annotated[MovieRepository, Depends(get_repository)]
+```
+Update FastAPI endpoints (from Session 03) to use the new repository methods. Log `trace_id` alongside `movie_id` when writing to the DB.
+
+### 6. CLI utilities (`scripts/db.py`)
+```python
+import typer
 
 from app.db import init_db
-from app import repository
-from app.models import MovieCreate, MovieRead, RatingCreate
 
-app = FastAPI(title="Movie Service", version="0.3.0")
+app = typer.Typer()
 
 
-@app.on_event("startup")
-def startup() -> None:
-    init_db(seed_fn=repository.seed_movies)
+@app.command()
+def migrate() -> None:
+    init_db()
+    typer.echo("Database ready")
 
 
-@app.get("/health")
-def health_check() -> dict[str, str]:
-    return {"status": "ok"}
-
-
-@app.get("/movies", response_model=list[MovieRead])
-def get_movies() -> list[MovieRead]:
-    return repository.list_movies()
-
-
-@app.get("/movies/{movie_id}", response_model=MovieRead)
-def get_movie(movie_id: int) -> MovieRead:
-    movie = repository.get_movie(movie_id)
-    if movie is None:
-        raise HTTPException(status_code=404, detail="Movie not found")
-    return movie
-
-
-@app.post("/movies", response_model=MovieRead, status_code=201)
-def create_movie(payload: MovieCreate) -> MovieRead:
-    return repository.create_movie(payload)
-
-
-@app.post("/ratings", status_code=204)
-def create_rating(payload: RatingCreate) -> None:
-    try:
-        repository.add_rating(payload)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-
-
-@app.get("/movies/top", response_model=list[MovieRead])
-def get_top_movies(limit: int = 5) -> list[MovieRead]:
-    return repository.top_movies(limit=limit)
+if __name__ == "__main__":
+    app()
 ```
-
-### Verify Persistence
-- Run `uv run uvicorn app.main:app --reload`.
-- Visit `http://localhost:8000/movies` to confirm the seeded catalogue.
-- Add a rating:
-  ```bash
-  curl -X POST http://localhost:8000/ratings     -H "Content-Type: application/json"     -d '{"movie_id": 1, "user_id": 42, "score": 5}'
-  ```
-- Retrieve top movies:
-  ```bash
-  curl "http://localhost:8000/movies/top?limit=3"
-  ```
-- Stop the server, restart, and check the data still exists.
-
----
-
-## Break (10 Minutes)
-Launch the shared [10-minute timer](https://e.ggtimer.com/10minutes), stretch, and get set for Part C.
-
----
+Run `uv run python scripts/db.py migrate` to create local tables quickly.
 
 ## Part C – Hands-on Lab 2 (45 Minutes)
-### Test Fixtures (`tests/conftest.py`)
+### 1. Temporary DB fixture (preview)
+Create `tests/conftest.py`:
 ```python
-import tempfile
-from collections.abc import Iterator
+from collections.abc import Generator
+from pathlib import Path
 
 import pytest
-from sqlmodel import SQLModel, create_engine, Session
+from sqlmodel import Session, SQLModel, create_engine
 
-from app import db, repository
+from app.dependencies import get_repository
+from app.repository import MovieRepository
+
+TEST_DB = "sqlite:///./test_movies.db"
+engine = create_engine(TEST_DB, connect_args={"check_same_thread": False})
 
 
 @pytest.fixture(autouse=True)
-def temporary_db(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    with tempfile.NamedTemporaryFile(suffix=".db") as tmp:
-        engine = create_engine(
-            f"sqlite:///{tmp.name}",
-            connect_args={"check_same_thread": False},
-        )
-        monkeypatch.setattr(db, "engine", engine)
-        SQLModel.metadata.create_all(engine)
+def _clean_db() -> Generator[None, None, None]:
+    SQLModel.metadata.create_all(engine)
+    yield
+    SQLModel.metadata.drop_all(engine)
+
+
+@pytest.fixture
+def repository(monkeypatch) -> MovieRepository:
+    def _override_repo():
         with Session(engine) as session:
-            repository.seed_movies(session)
-        yield
+            yield MovieRepository(session)
+
+    monkeypatch.setattr("app.dependencies.get_repository", _override_repo)
+    with Session(engine) as session:
+        yield MovieRepository(session)
 ```
 
-### Expand Tests (`tests/test_movies.py`)
-Add assertions for list, recommendations, and error paths:
-```python
-import pytest
-from fastapi.testclient import TestClient
-
-from app.main import app
-
-
-client = TestClient(app)
-
-
-def test_list_movies():
-    response = client.get("/movies")
-    assert response.status_code == 200
-    data = response.json()
-    assert len(data) == 5
-    assert data[0]["title"] == "Inception"
-
-
-def test_get_movie():
-    response = client.get("/movies/1")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["id"] == 1
-    assert data["title"] == "Inception"
-
-
-def test_get_movie_not_found():
-    response = client.get("/movies/999")
-    assert response.status_code == 404
-
-
-def test_create_movie():
-    payload = {"title": "Parasite", "year": 2019, "genre": "Thriller"}
-    response = client.post("/movies", json=payload)
-    assert response.status_code == 201
-    data = response.json()
-    assert data["title"] == "Parasite"
-    assert data["id"] is not None
-
-
-def test_add_rating():
-    response = client.post(
-        "/ratings",
-        json={"movie_id": 1, "user_id": 42, "score": 5}
-    )
-    assert response.status_code == 204
-
-
-def test_add_rating_invalid_movie():
-    response = client.post(
-        "/ratings",
-        json={"movie_id": 999, "user_id": 42, "score": 5}
-    )
-    assert response.status_code == 404
-
-
-def test_top_movies():
-    # Add ratings
-    client.post("/ratings", json={"movie_id": 1, "user_id": 1, "score": 5})
-    client.post("/ratings", json={"movie_id": 1, "user_id": 2, "score": 5})
-    client.post("/ratings", json={"movie_id": 2, "user_id": 1, "score": 3})
-
-    response = client.get("/movies/top?limit=2")
-    assert response.status_code == 200
-    data = response.json()
-    assert len(data) <= 2
-    assert data[0]["average_rating"] >= (data[1]["average_rating"] or 0)
-```
-
-### Run Tests
-```bash
-uv run pytest tests/test_movies.py -v
-```
-
-All tests should pass! 🎉
-
-### Expand Tests (`tests/test_movies.py`)
-Add assertions for list, recommendations, and error paths. Example snippet:
+### 2. Rewrite tests to cover DB operations
+`tests/test_movies.py`:
 ```python
 from fastapi.testclient import TestClient
 
@@ -407,55 +225,53 @@ from app.main import app
 client = TestClient(app)
 
 
-def test_get_movies_returns_seeded_catalogue():
-    response = client.get("/movies")
-    assert response.status_code == 200
-    body = response.json()
-    assert any(movie["title"] == "Inception" for movie in body)
-
-
-def test_delete_movie_removes_entry():
-    created = client.post(
+def test_create_movie_persists_and_lists(repository):
+    response = client.post(
         "/movies",
-        json={"title": "Temp", "year": 2021, "genre": "Drama"},
+        json={"title": "Arrival", "year": 2016, "genre": "sci-fi"},
+        headers={"X-Trace-Id": "sql-demo"},
+    )
+    assert response.status_code == 201
+
+    list_response = client.get("/movies")
+    items = list_response.json()
+    assert len(items) == 1
+    assert items[0]["title"] == "Arrival"
+
+
+def test_add_rating_creates_relationship(repository):
+    create = client.post(
+        "/movies",
+        json={"title": "Dune", "year": 2021, "genre": "sci-fi"},
     ).json()
-    delete_response = client.delete(f"/movies/{created['id']}")
-    assert delete_response.status_code == 204
-    assert client.get(f"/movies/{created['id']}").status_code == 404
-```
 
-### Run the Suite
+    rating = repository.add_rating(movie_id=create["id"], score=5)
+    assert rating.score == 5
+    assert rating.movie_id == create["id"]
+```
+Run `uv run pytest -q` and call out that autouse fixtures reset the DB per test (Session 07 will formalize fixtures and factories).
+
+### 3. Alembic downgrade drill
 ```bash
-uv run pytest -q
+uv run alembic downgrade -1
+uv run alembic upgrade head
 ```
+Explain how to recover from broken migrations.
 
-### Reflection Prompt
-- Ask: “How did database fixtures keep tests isolated?”
-- Highlight: The movie repository hides persistence details, so new features slot in without touching route code.
-## Exercise 2 Announcement
-- **Goal:** Build a user interface (Streamlit or small React app) that talks to this API.
-- **Assigned:** Today.
-- **Due:** Tuesday, Dec 23, 2025 at 23:59.
-- **Deliverables:** UI supporting list/create/update/delete actions, README with run instructions, AI usage notes.
-- Encourage students to choose teams and decide between Streamlit or React tonight.
-- **AWS reminder:** Storage module completion screenshot should be uploaded by **Tuesday, Dec 9, 2025** to stay ahead of the **Tue Dec 16, 2025** hard deadline.
+### 4. Optional stretch – uniqueness guard
+Add a unique constraint check and raise HTTP 409 in the FastAPI route; note this as EX1 stretch.
+
+## Wrap-up & Next Steps
+- ✅ SQLModel models, Alembic migrations, FastAPI integration, and test coverage across the DB boundary.
+- Next: integrate metrics/logging (Session 07), add richer queries (`selectinload`), add seeded data via CLI, and explore read/write splitting as a thought experiment.
+- Encourage updating documentation (`docs/contracts/data-model.md`) with ER diagrams and constraints.
 
 ## Troubleshooting
-- If you see `sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread`, confirm `check_same_thread` is set to `False`.
-- Delete `movies.db` when schema changes cause issues (this is safe in development).
-- On Windows, make sure the project path does not contain spaces to prevent SQLite file locking problems.
+- **`sqlite3.OperationalError: no such table`** → ensure migrations ran (`uv run alembic upgrade head`).
+- **“SQLite objects created in a thread can only be used in that same thread”** → include `connect_args={"check_same_thread": False}` for tests.
+- **Alembic autogenerate misses changes** → verify models are imported in `env.py` and metadata is accurate.
 
-## Student Success Criteria
-- Movies and ratings persist across server restarts.
-- Tests cover create/read/update/delete plus rating and top-movie logic without leaking state.
-- Students can explain why separating models/repository makes the code easier to maintain.
-- Students have recorded the **Dec 9 (soft)** and **Dec 16 (hard)** dates for the Storage module and know how to submit proof of completion.
-
-## Quick Reference (External Search / ChatGPT)
-- **Google:** `SQLModel FastAPI movie rating example`
-- **ChatGPT prompt:** “Outline three talking points to explain why the movie service moved from in-memory storage to SQLModel + SQLite.”
-
-## AI Prompt Kit (Copy/Paste)
-- “Refactor the in-memory FastAPI movie service to use SQLModel + SQLite. Create `MovieRow`, `RatingRow`, repository helpers, and seed starter movies on startup.”
-- “Write pytest fixtures that replace the SQLite engine with a temp file, seed movies, and test `/movies`, `/ratings`, and `/movies/top`.”
-- “Explain when to use `model_validate` vs. `model_dump` with SQLModel/Pydantic v2 using the movie repository as the example.”
+## AI Prompt Seeds
+- “Generate SQLModel models for movies and ratings with a relationship and uniqueness on title.”
+- “Write an Alembic migration that creates movie/rating tables with indexes.”
+- “Suggest pytest fixtures for SQLite databases that reset state per test.”

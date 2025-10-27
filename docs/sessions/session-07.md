@@ -1,180 +1,206 @@
-# Session 07 – Testing, Logging, and Profiling Basics
+# Session 07 – Testing, Logging, and Profiling Foundations
 
 - **Date:** Monday, Dec 15, 2025
-- **Theme:** Improve reliability by expanding tests, adding meaningful logs, and measuring performance.
+- **Theme:** Deepen reliability by expanding the test suite, capturing structured telemetry (Logfire + trace IDs), and measuring performance.
 
 ## Learning Objectives
-- Write tests that cover error paths and edge cases.
-- Add structured logging to FastAPI requests.
-- Measure response time with lightweight profiling tools.
+- Use pytest fixtures and Hypothesis to cover happy, sad, and edge cases with minimal duplication.
+- Instrument FastAPI with Pydantic Logfire to capture timings, errors, and trace IDs without drowning in logs.
+- Generate coverage reports (`pytest --cov`), snapshot JSON responses, and gate pull requests on quality metrics.
+- Run quick performance probes (`timeit`, `cProfile`) to catch regressions before EX2 demos.
+
+## Before Class – Quality Preflight (JiTT)
+- Install testing/observability tools:
+  ```bash
+  uv add "pytest-cov==5.*" "hypothesis==6.*" "logfire==0.*"
+  ```
+- Ensure `pytest` succeeds locally (`uv run pytest -q`) before class so we focus on improvements, not broken baselines.
+- Skim the Logfire quickstart (link in LMS) and note one question about dashboards or retention.
+- Finish the **AWS Storage** module by **Tue Dec 9, 2025**; remind everyone we collect certificates on **Tue Dec 16, 2025**.
 
 ## Agenda
 | Segment | Duration | Format | Focus |
 | --- | --- | --- | --- |
-| Warm-up discussion | 10 min | Circle | Share one bug caught by tests over the weekend |
-| Testing review | 20 min | Talk | Unit vs. integration tests, parametrization, fixtures |
-| Logging primer | 15 min | Talk | Log levels, structured messages, why metadata matters |
-| Lab 1 | 45 min | Guided coding | Expand pytest coverage using parametrization |
-| Break | 10 min | — | Launch [10-minute timer](https://e.ggtimer.com/10minutes) and reset |
-| Lab 2 | 45 min | Guided coding | Add request logging middleware and timing |
-| EX2 work sprint | 10 min | Lab | Dedicated help time; remind deadline |
+| Warm-up & bug stories | 8 min | Discussion | Share one bug caught by tests since Session 05; logfire expectations. |
+| Testing depth tour | 17 min | Talk + whiteboard | Fixtures, parametrization, Hypothesis, snapshot testing strategy. |
+| Micro demo: Logfire in 60s | 3 min | Live demo (≤120 s) | Capture one FastAPI request in Logfire dashboard. |
+| Observability patterns | 17 min | Talk + code walkthrough | Structured logs, trace IDs, error capture, log levels. |
+| **Part B – Lab 1** | **45 min** | **Guided testing** | **Fixtures, parametrized tests, Hypothesis property checks.** |
+| Break | 10 min | — | Launch the shared [10-minute timer](https://e.ggtimer.com/10minutes). |
+| **Part C – Lab 2** | **45 min** | **Guided observability** | **Logfire integration, coverage reports, lightweight profiling.** |
+| Wrap-up & EX2 sprint | 10 min | Q&A | Game plan for EX2 demos, coverage gates, open office hours.
 
-## Teaching Script – Quality Mindset
-1. “Shipping code without tests is like flying without instruments.” Encourage small, fast tests.
-2. Introduce pytest parametrization to avoid duplicating code.
-3. Explain log levels: DEBUG (noisy) → INFO (default) → WARNING → ERROR → CRITICAL.
-4. Mention profiling: “You do not need fancy tools today. Timing functions with `time.perf_counter` is enough to spot slowdowns.”
-5. Remind everyone to finish the AWS **Storage** module during the break so it’s uploaded by **Tuesday, Dec 9, 2025**, comfortably ahead of the **Tue Dec 16, 2025** hard deadline.
+## Part A – Theory Highlights
+1. **Pytest architecture:** fixtures (function vs session scope), parametrization (`@pytest.mark.parametrize`), factories for realistic payloads.
+2. **Property-based testing:** use Hypothesis to generate inputs for validators and ensure invariants hold.
+3. **Snapshot testing:** capture JSON responses (store under `tests/snapshots/`) and enforce stable contracts.
+4. **Observability levels:** application logs (FastAPI + Logfire), metrics later (Session 09/10), tracing with trace IDs.
+5. **Performance probes:** run `time.perf_counter()` or `uv run python -m cProfile` as a quick sanity check; mention `py-spy` for offline analysis.
 
-## Part B – Hands-on Lab 1 (45 Minutes) – Test Expansion for Movies
-### Temporary Database Fixture (`tests/conftest.py`)
+## Part B – Hands-on Lab 1 (45 Minutes)
+### 1. Enhance fixtures (`tests/conftest.py`)
 ```python
-import os
-import tempfile
-from collections.abc import Iterator
+from collections.abc import Generator
+from pathlib import Path
+from typing import Any, Callable
 
 import pytest
-from sqlmodel import SQLModel, create_engine
+from sqlmodel import Session, SQLModel, create_engine
 
-from app import db, repository
+from app.dependencies import get_repository
+from app.main import app
+from app.repository import MovieRepository
+
+TEST_DB = "sqlite:///./test_movies.db"
+engine = create_engine(TEST_DB, connect_args={"check_same_thread": False})
 
 
 @pytest.fixture(autouse=True)
-def temporary_db(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    with tempfile.NamedTemporaryFile(suffix=".db") as tmp:
-        engine = create_engine(
-            f"sqlite:///{tmp.name}", connect_args={"check_same_thread": False}
-        )
-        monkeypatch.setattr(db, "engine", engine)
-        SQLModel.metadata.create_all(engine)
-        repository.seed_movies(engine)
-        yield
-```
+def _reset_db(tmp_path: Path) -> Generator[None, None, None]:
+    SQLModel.metadata.create_all(engine)
+    yield
+    SQLModel.metadata.drop_all(engine)
 
-### Parametrized Tests (`tests/test_movies.py`)
+
+@pytest.fixture
+def repo(monkeypatch: pytest.MonkeyPatch) -> Generator[MovieRepository, None, None]:
+    def _override_repo() -> Generator[MovieRepository, None, None]:
+        with Session(engine) as session:
+            yield MovieRepository(session)
+
+    monkeypatch.setattr("app.dependencies.get_repository", _override_repo)
+    with Session(engine) as session:
+        yield MovieRepository(session)
+
+
+@pytest.fixture
+def client(repo: MovieRepository) -> Generator[Any, None, None]:
+    from fastapi.testclient import TestClient
+
+    with TestClient(app) as test_client:
+        yield test_client
+```
+Explain how autouse fixture guarantees clean state and why we override the dependency for deterministic tests.
+
+### 2. Parametrized & property-based tests (`tests/test_movies.py`)
 ```python
 import pytest
-from fastapi.testclient import TestClient
+from hypothesis import given, strategies as st
 
-from app.main import app
 
-client = TestClient(app)
+def test_create_movie_variants(client):
+    payloads = [
+        {"title": "Arrival", "year": 2016, "genre": "sci-fi"},
+        {"title": "Dune", "year": 2021, "genre": "Sci-Fi"},
+    ]
+    for payload in payloads:
+        response = client.post("/movies", json=payload, headers={"X-Trace-Id": "test"})
+        assert response.status_code == 201
+        assert response.json()["genre"].istitle()
 
 
 @pytest.mark.parametrize(
-    "payload",
-    [
-        {"title": "Interstellar", "year": 2014, "genre": "Sci-Fi"},
-        {"title": "Hidden Figures", "year": 2016, "genre": "Drama"},
-        {"title": "Inside Out", "year": 2015, "genre": "Animation"},
-    ],
+    "bad_year",
+    [1800, 2150],
 )
-def test_create_movie_accepts_valid_payloads(payload):
-    response = client.post("/movies", json=payload)
-    assert response.status_code == 201
-    body = response.json()
-    assert body["title"] == payload["title"]
-    assert body["genre"] == payload["genre"]
-
-
-def test_rating_requires_existing_movie():
-    payload = {"movie_id": 9999, "user_id": 7, "score": 4}
-    response = client.post("/ratings", json=payload)
-    assert response.status_code == 404
-
-
-def test_rating_updates_top_movies():
-    movie = client.post(
+def test_create_movie_rejects_out_of_range_year(client, bad_year):
+    response = client.post(
         "/movies",
-        json={"title": "Test Feature", "year": 2023, "genre": "Thriller"},
-    ).json()
-    client.post(
-        "/ratings",
-        json={"movie_id": movie["id"], "user_id": 1, "score": 5},
+        json={"title": "Bad Year", "year": bad_year, "genre": "Sci-Fi"},
     )
-    top = client.get("/movies/top?limit=1").json()
-    assert top
-    assert top[0]["title"] == "Test Feature"
-    assert top[0]["average_rating"] == 5
+    assert response.status_code == 422
+
+
+@given(st.text(min_size=1, max_size=40))
+def test_title_is_preserved_round_trip(client, title):
+    response = client.post(
+        "/movies",
+        json={"title": title, "year": 2000, "genre": "Drama"},
+    )
+    if response.status_code == 201:
+        movie_id = response.json()["id"]
+        fetched = client.get(f"/movies/{movie_id}").json()
+        assert fetched["title"] == title
 ```
+Highlight that Hypothesis automatically explores edge characters; log failures for easier debugging.
 
-### Run the Suite
-```bash
-uv run pytest -q
-```
-Encourage students to watch for failing assertions and tie them back to missing edge cases.
-
----
-
-## Break (10 Minutes)
-Launch the shared [10-minute timer](https://e.ggtimer.com/10minutes), grab water, and head back for Part C.
-
----
-
-## Part C – Hands-on Lab 2 (45 Minutes) – Logging and Profiling
-### Configure Logging
-Add to `app/main.py`:
+### 3. Snapshot JSON responses
+Use `pytest-datadir` or simple fixture:
 ```python
-import logging
-import time
-from fastapi import Request
+from pathlib import Path
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-logger = logging.getLogger("movie-service")
+SNAPSHOT_DIR = Path("tests/snapshots")
+SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
 
 
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
-    start = time.perf_counter()
-    response = await call_next(request)
-    duration_ms = (time.perf_counter() - start) * 1000
-    logger.info(
-        "method=%s path=%s status=%s duration_ms=%.2f",
-        request.method,
-        request.url.path,
-        response.status_code,
-        duration_ms,
-    )
-    return response
+def test_movies_list_snapshot(client):
+    # Seed two movies first or reuse previous helper
+    client.post("/movies", json={"title": "Interstellar", "year": 2014, "genre": "Sci-Fi"})
+    client.post("/movies", json={"title": "Blade Runner", "year": 1982, "genre": "Sci-Fi"})
+
+    response = client.get("/movies")
+    assert response.status_code == 200
+
+    snapshot_path = SNAPSHOT_DIR / "movies_list.json"
+    if not snapshot_path.exists():
+        snapshot_path.write_text(response.text)
+    assert response.text == snapshot_path.read_text()
 ```
+Explain review process: snapshot updates require human approval.
 
-### Mini Profiling Exercise
-1. Create a slow endpoint for demonstration:
-   ```python
-   @app.get("/debug/slow")
-   def slow_endpoint() -> dict[str, str]:
-       time.sleep(0.2)
-       return {"status": "slow"}
-   ```
-2. Call it with `curl http://localhost:8000/debug/slow` and observe the log line showing ~200 ms.
-3. Remove or comment out the endpoint after the demo.
+## Part C – Hands-on Lab 2 (45 Minutes)
+### 1. Wire Logfire into FastAPI
+Install (already done) and configure `logfire` in `app/observability.py`:
+```python
+import logfire
+from fastapi import FastAPI
 
-### Student Task
-- Break a test intentionally, rerun pytest, and read the failure message.
-- Trigger logging by calling `/movies`, `/movies/top`, and `/ratings`.
-- Capture a log snippet highlighting method, path, status, and duration for their notes.
 
-## EX2 Work Sprint (10 Minutes)
-- Remind: Exercise 2 due Tuesday, Dec 23, 2025.
-- Encourage students to use the logs to debug their UI/API integration.
-- Offer office hours sign-up sheet for anyone behind schedule.
+def init_app(app: FastAPI) -> None:
+    logfire.configure(
+        service_name="movie-service",
+        send_to_logfire=True,  # set False for offline demos
+    )
+    logfire.instrument_fastapi_app(app)
+```
+In `app/main.py`:
+```python
+from . import observability
+
+observability.init_app(app)
+```
+Add structured logging inside routes (replace previous `logger.info` if desired):
+```python
+from logfire import log
+
+log.info("movie.created", movie_id=movie.id, trace_id=request.state.trace_id)
+```
+Run the micro demo: `uv run uvicorn app.main:app --reload` → make a request → open the Logfire web UI to visualize traces.
+
+### 2. Coverage gates
+```bash
+uv run pytest --cov=app --cov-report=term-missing
+```
+Interpret missing lines, add tests, rerun. Document how to wire into GitHub Actions (Session 10).
+
+### 3. Lightweight profiling
+- Wrap a repository call with `time.perf_counter()` before/after; log duration.
+- Optional: `uv run python -m cProfile -o profile.out app/scripts/seed.py` and open with `snakeviz` (install if desired).
+
+### 4. Observability + testing synergy
+- Show that trace IDs appear in Logfire, Docker logs, and test headers.
+- Capture failing Hypothesis example and review the correlated Logfire event.
+
+## Wrap-up & EX2 Sprint
+- ✅ Fixtures, parametrization, Hypothesis, snapshots, Logfire instrumentation, coverage.
+- Between now and Session 08: finish EX2 UI features, enforce `pytest --cov` in CI, snapshot any critical responses, and log outstanding performance questions.
 
 ## Troubleshooting
-- If logs appear twice, check for duplicate calls to `logging.basicConfig`.
-- To silence uvicorn access logs during debugging, run `uv run uvicorn app.main:app --reload --log-level warning`.
-- When parametrized tests appear to share state, ensure fixtures recreate the database for each test.
+- **Hypothesis health check warnings** → adjust strategies or increase `deadline=None` for slower tests.
+- **Logfire authentication** → ensure environment variable `LOGFIRE_API_KEY` is set; fall back to `send_to_logfire=False` for offline demo.
+- **Coverage missing modules** → check `__init__.py` files and ensure tests import the modules under test.
 
-## Student Success Criteria
-- Pytest suite covers movie creation, ratings, and the `/movies/top` endpoint without regressions.
-- Request logs show method, path, status, and duration for each request.
-- Students can explain how they would time a slow function or endpoint.
-- Students know the Storage module soft deadline (**Dec 9**) and hard deadline (**Dec 16**) and have a plan to submit the completion proof on time.
-
-## AI Prompt Kit (Copy/Paste)
-- “Write parametrized pytest tests for a FastAPI movie service covering valid movie payloads, rating validation, and `/movies/top`. Use `TestClient`.”
-- “Add an HTTP middleware to FastAPI that logs movie service requests (method/path/status/duration) using `logging` + `time.perf_counter`.”
-- “Show a minimal example of timing a Python function with `time.perf_counter` and printing the elapsed milliseconds.”
-
-## Quick Reference (External Search / ChatGPT)
-- **Google:** `pytest parametrized tests example`
-- **ChatGPT prompt:** “Summarize the difference between unit, integration, and end-to-end tests in under 150 words for undergrads.”
+## AI Prompt Seeds
+- “Write pytest fixtures that override FastAPI dependencies with a temporary SQLite database.”
+- “Generate property-based tests using Hypothesis for a FastAPI endpoint that normalizes genres.”
+- “Instrument FastAPI with Pydantic Logfire to record request timings and trace IDs.”
