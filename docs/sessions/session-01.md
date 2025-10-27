@@ -8,12 +8,13 @@
 - Install or verify core tools: uv, Git, Python 3.11+, VS Code, Docker Desktop.
 - Create a minimal Python project with uv and run tests from the terminal.
 
-**Guiding principles:** keep everything **KISS** (Keep It Simple, Students) and share questions using the **PARD** format (Problem → Action → Result → Desired) so we can move fast together.
+**Guiding principles:** keep everything **KISS** (Keep It Simple, Students) and share questions using the **PARD** format (Problem → Action → Result → Desired) so we can move fast together. All commands assume macOS, Linux, or Windows Subsystem for Linux (WSL); no native Windows PowerShell steps are covered.
 
 ## Before Class – Equipment Check (JiTT)
 Ask students to complete this 5-minute checklist the night before:
 - Run `python3 --version` (or `py --version` on Windows), `uv --version`, `git --version`, and `code --version`. Paste the commands _and_ outputs in Discord `#helpdesk` using the **Problem → Action → Result → Desired** template (see below).
 - Note any failures or missing commands so we can triage on arrival; do **not** spend hours debugging alone.
+- If `uv` is missing, install it ahead of time with `curl -LsSf https://astral.sh/uv/install.sh | sh && exec "$SHELL" -l`.
 - This just-in-time teaching checkpoint lets us spend class time on the fun parts instead of long installs.
 
 ## Agenda
@@ -52,26 +53,21 @@ Use these numbered steps when you call out B# (Part B) or C# (Part C). Unless ot
 - **B1** – _Create project_:  
   ```bash
   mkdir hello-uv && cd hello-uv
-  ```  
-  (Windows PowerShell: `New-Item -ItemType Directory hello-uv; Set-Location hello-uv`)
+  ```
 - **B2** – _Project scaffold (no activation needed):_  
   ```bash
   uv init
   uv venv --python 3.11
-  uv add pytest
-  ```  
-  Verify with `uv --version` and `uv run python --version`.  
-  If `uv` is missing, install it _before_ running B2:  
-  - macOS/Linux: `curl -LsSf https://astral.sh/uv/install.sh | sh` (or `brew install uv`)  
-  - Windows PowerShell (Admin): `powershell -c "irm https://astral.sh/uv/install.ps1 | iex"`
-- **B3** – _Write starter tests (pick one editor):_  
+  uv add pytest==8.*
+  uv run python --version  # should report 3.11.x
+  ```
+  If `uv` is missing, install it first with `curl -LsSf https://astral.sh/uv/install.sh | sh && exec "$SHELL" -l`.
+- **B3** – _Write starter tests (editor of your choice):_  
   ```bash
   mkdir -p tests
+  nano tests/test_math.py
   ```
-  - macOS/Linux/WSL: `nano tests/test_math.py`  
-  - VS Code: `code tests/test_math.py`  
-  - PowerShell: `notepad tests\test_math.py`  
-  Paste exactly:  
+  (Alternative: `code tests/test_math.py` or `vim tests/test_math.py`.) Paste exactly:  
   ```python
   def test_addition():
       assert 2 + 2 == 4
@@ -86,35 +82,45 @@ Use these numbered steps when you call out B# (Part B) or C# (Part C). Unless ot
   ```bash
   uv run pytest -q
   ```  
-  Expect three dots and “3 passed”.
+  Expect three dots followed by “3 passed”.
 - **B5** – _Create `.gitignore` (KISS edition):_  
-  Keep only what we actually generate today.
-  - Bash/WSL/macOS:  
-    ```bash
-    cat > .gitignore <<'EOF'
-    __pycache__/
-    .venv/
-    .uv/
-    .env
-    EOF
-    ```
-  - PowerShell: `notepad .gitignore` (or `code .gitignore`) and paste the same four lines.
+  ```bash
+  cat > .gitignore <<'EOF'
+  __pycache__/
+  .pytest_cache/
+  .venv/
+  .uv/
+  .env
+  EOF
+  ```
 - **B6** – _Initial commit:_  
   ```bash
   git init
+  git diff        # working tree check
   git add .
+  git diff --staged
   git commit -m "chore: bootstrap hello-uv project"
   git log --oneline
+  ```
+  _Optional_: add a simple `pytest.ini` to keep output consistent: 
+  ```bash
+  cat > pytest.ini <<'EOF'
+  [pytest]
+  addopts = -q
+  testpaths = tests
+  EOF
+  git add pytest.ini
+  git commit -m "chore: add pytest config"
   ```
 
 ### Part C – Editor, Shell, Documentation
 - **C1** – _Open VS Code & extensions:_  
   `code .` (or VS Code → **Open Folder**). Install Python, Pylance, GitLens, REST Client, Docker. Configure pytest discovery if prompted.
-- **C2** – _Shell reps (choose platform):_  
-  - Bash/WSL/macOS:  
-    `pwd && ls -la && echo "Scratch pad" > notes.txt && git status && rm notes.txt`  
-  - PowerShell:  
-    `Get-Location; Get-ChildItem; "Scratch pad" > notes.txt; git status; Remove-Item notes.txt`
+- **C2** – _Shell reps:_  
+  ```bash
+  pwd && ls -la && echo "Scratch pad" > notes.txt && git status && rm notes.txt
+  ```
+  (The same command works in macOS, Linux, and WSL.)
 - **C3** – _README:_  
   `code README.md` (or `nano` / `notepad`). Use the provided template.
 - **C4** – _Docs commit:_  
@@ -308,11 +314,9 @@ Use these numbered steps when you call out B# (Part B) or C# (Part C). Unless ot
 
 1. **curl demo:**
    ```bash
-   curl https://api.github.com/users/aws
-   curl -s https://api.github.com/users/aws | head -5
+   curl -s https://api.github.com/users/aws | uv run python -m json.tool | head -20
    ```
-   - Confirms your network works and shows the raw JSON the API returns.
-   - The second command trims the output so it is readable in class.
+   - Confirms your network works, pretty-prints the JSON, and shows you the shape of the response quickly.
 
 2. **uv demo:**
    ```bash
@@ -391,7 +395,7 @@ If the link fails, run `python -c "import time; time.sleep(600)"` or set a phone
 
 **Instructor Live Coding (students follow along exactly):**
 1. Execute **Quick Reference B2** together. Narrate what each command does: `uv venv` isolates Python, `uv init` scaffolds metadata, `uv add` pins dependencies.
-2. After activation, pause so students can notice the `(.venv)` prompt. Emphasise why running tools through `uv run ...` keeps them inside the environment.
+2. If anyone activates the environment out of habit, point out the `(.venv)` prompt but emphasise that the class standard is to rely on `uv run ...` instead.
 3. Close with a group `uv run pytest --version` to prove the dependency landed.
 
 **Student Checkpoint:**
@@ -402,12 +406,29 @@ If the link fails, run `python -c "import time; time.sleep(600)"` or set a phone
 
 **Instructor Live Coding:**
 1. Guide students through **Quick Reference B3-B5**. Narrate the vim keystrokes (insert, paste, `Esc :wq`) and explain pytest output symbols (`.` vs `F`).
-2. After the intentional failure demo, debrief why red tracebacks are learning signals, not disasters. Encourage them to share PAR↴D-formatted questions when they get stuck.
+2. After the intentional failure demo, debrief why red tracebacks are learning signals, not disasters. Encourage them to share PARD-formatted questions when they get stuck.
 
 **Student Task Card:**
 - Run `uv run pytest -q` and verify you see `3 passed`.
 - If you see failures, check your code matches exactly.
 - Raise your hand if tests don't pass.
+
+### Micro Demos (Optional, 90 Seconds Each)
+- **Red → Green:**
+  ```bash
+  printf 'def test_fail(): assert 2 + 2 == 5\n' > tests/test_fail.py
+  uv run pytest -q
+  sed -i.bak 's/5/4/' tests/test_fail.py  # macOS BSD sed; Linux users can drop .bak
+  uv run pytest -q
+  ```
+  Use this to normalise fast iteration: fail, inspect, fix, rerun.
+- **See the wire:**
+  ```bash
+  curl -s https://api.github.com/users/aws \
+    | uv run python -m json.tool \
+    | head -20
+  ```
+  Emphasise that we “look at the wire” before writing clients.
 
 ### Git Foundation (5 Minutes)
 
@@ -520,7 +541,6 @@ uv run python -c "import sys; print(sys.executable)"
 ```
 
 Share a printed or PDF **terminal cheat sheet** (Mac shortcuts on the left, Windows/WSL on the right) so students can reference commands after class.
-Flag the PowerShell equivalents as you demo (`Remove-Item`, `Get-ChildItem`, etc.) so Windows users can mirror the workflow.
 
 **Student Task:**
 - Type each command and observe the output.
@@ -539,39 +559,22 @@ Flag the PowerShell equivalents as you demo (`Remove-Item`, `Get-ChildItem`, etc
    A minimal Python project demonstrating modern tooling with `uv`, `pytest`, and `Git`.
    
    ## Setup
-   
+
    1. Clone this repository (or create a new project):
       ```bash
       git clone <your-repo-url>
       cd hello-uv
       ```
-   
-   2. Create and activate a virtual environment:
+
+   2. Create the uv virtual environment (Python 3.11 only) and install dependencies:
       ```bash
-      uv venv
-      # Optional: source .venv/bin/activate  (macOS/Linux)
-      # Optional: .venv\Scripts\Activate.ps1  (Windows PowerShell)
-      # Canonical pattern in this course: use `uv run ...` instead of activation.
-      ```
-   
-   3. Install dependencies:
-      ```bash
+      uv venv --python 3.11
       uv sync
       ```
-   
+
    ## How to Run Tests
-   
-   Run all tests:
-   ```bash
-   uv run pytest
-   ```
-   
-   Run with verbose output:
-   ```bash
-   uv run pytest -v
-   ```
-   
-   Run in quiet mode:
+
+   Run all tests (quiet mode):
    ```bash
    uv run pytest -q
    ```
@@ -662,6 +665,85 @@ This is the workflow you'll use for all three exercises."
 
 ---
 
+### Optional Preview: Typer, Pydantic, FastAPI, SQLModel
+If you finish early, install a small bundle and explore what’s ahead:
+```bash
+uv add "typer==0.*" "pydantic==2.*" "fastapi==0.115.*" "sqlmodel==0.0.22" "uvicorn==0.*"
+```
+- **Typer (CLI skeleton):**
+  ```python
+  # cli.py
+  import typer
+
+  app = typer.Typer()
+
+  @app.command()
+  def greet(name: str = "world"):
+      print(f"Hello, {name}!")
+
+  if __name__ == "__main__":
+      app()
+  ```
+  Run with `uv run python cli.py greet --name Alice`.
+- **Pydantic (validated input):**
+  ```python
+  # validate.py
+  from pydantic import BaseModel, ValidationError
+
+  class Item(BaseModel):
+      name: str
+      price: float
+
+  try:
+      print(Item(name="pen", price="1.5").model_dump())
+  except ValidationError as exc:
+      print(exc)
+  ```
+- **FastAPI (10-line POST):**
+  ```python
+  # app.py
+  from fastapi import FastAPI
+  from pydantic import BaseModel
+
+  app = FastAPI()
+
+  class Item(BaseModel):
+      name: str
+      price: float
+
+  @app.post("/items")
+  def create(item: Item):
+      return {"ok": True, "total": item.price}
+  ```
+  Start it with `uv run uvicorn app:app --reload --port 8000` and test via:
+  ```bash
+  curl -s -X POST localhost:8000/items \
+    -H "content-type: application/json" \
+    -d '{"name":"pen","price":1.5}' \
+    | uv run python -m json.tool
+  ```
+- **SQLModel (typed rows in SQLite):**
+  ```python
+  # db_demo.py
+  from sqlmodel import SQLModel, Field, Session, create_engine, select
+
+  class Product(SQLModel, table=True):
+      id: int | None = Field(default=None, primary_key=True)
+      name: str
+      price: float
+
+  engine = create_engine("sqlite:///:memory:")
+  SQLModel.metadata.create_all(engine)
+
+  with Session(engine) as session:
+      session.add(Product(name="pen", price=1.5))
+      session.commit()
+      print(session.exec(select(Product)).all())
+  ```
+Treat these as teasers—you’ll master them in later sessions.
+
+---
+
 ## Wrap-Up Script (5 Minutes)
 
 **Instructor Final Thoughts:**
@@ -746,7 +828,7 @@ Post in Discord `#helpdesk`:
 1. Highlight the three required Cloud Foundations modules: **Compute**, **Storage**, **Databases**.
 2. Point students to [https://www.awsacademy.com](https://www.awsacademy.com) → **Student** sign-in and remind them to share their GitHub username + email in `#helpdesk` so you can issue invites.
 3. Restate the single deadline: **Tuesday, Dec 16, 2025** for all modules. Encourage pacing (e.g., one module per two weeks).
-4. Demonstrate how to capture the completion certificate for Canvas submission and where to ask questions (always `#helpdesk`, using PAR↴D format).
+4. Demonstrate how to capture the completion certificate for Canvas submission and where to ask questions (always `#helpdesk`, using PARD format).
 
 **Student follow-up:** enroll, confirm module access, schedule time to finish Compute (target: Nov 25) and the other two by Dec 16.
 
@@ -775,8 +857,8 @@ Expect the success message; on Windows remind them to enable WSL Integration in 
 
 ---
 
-### PAR↴D Help Template (Copy/Paste into `#helpdesk`)
-Pronounced “PARD”. The down arrow just reminds you to include the exact output (results flow **down** from your actions).
+### PARD Help Template (Copy/Paste into `#helpdesk`)
+Pronounced “Pard”. Always include the exact output so we can help quickly.
 ```
 **Problem:** <short description>
 **Action(s):** <exact commands you ran>
@@ -797,11 +879,8 @@ Providing all four lines saves everyone time and gives you sharper answers.
 curl -LsSf https://astral.sh/uv/install.sh | sh
 # (optional) Homebrew users: brew install uv
 
-# Windows:
-powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
-
 # After installing, restart your terminal or run:
-source ~/.bashrc  # or ~/.zshrc on Mac
+exec "$SHELL" -l
 ```
 If you still prefer `pip install uv`, do it inside a disposable virtual environment so the binary lands on your PATH predictably.
 
@@ -813,31 +892,24 @@ git config --global user.name "Your Name"
 git config --global user.email "you@school.edu"
 ```
 
-### Issue: `uv venv` fails on Windows
+### Issue: `uv venv` fails with permission or missing module errors
 
-**Solution:**
+**Solution (macOS/Linux/WSL):**
 ```bash
-# Make sure you're in PowerShell (not Command Prompt)
-# Enable script execution:
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-
-# Then try again:
-uv venv
-.venv\Scripts\Activate.ps1
+python3 --version        # ensure 3.11.x
+python3 -m ensurepip --upgrade
+python3 -m pip install --upgrade pip
+sudo apt install -y python3.11-venv  # Ubuntu/WSL only
+uv venv --python 3.11
 ```
-If the installer still fails mid-class, fall back temporarily:
-```bash
-python3 -m venv .venv
-.venv\Scripts\Activate.ps1
-```
-Then revisit the uv installation steps after the session.
+Most failures come from missing `python3.11-venv` or an older Python binary on the PATH.
 
 ### Issue: Python version is too old (< 3.11)
 
 **Solution:**
-- **Mac:** `brew install python@3.12` (requires Homebrew)
-- **Windows:** Download from python.org or use Windows Store
-- **Linux:** `sudo apt install python3.12` (Ubuntu) or equivalent
+- **macOS:** `brew install python@3.11` then ensure `python3 --version` reports 3.11 (`brew info python@3.11` for linking tips).
+- **Ubuntu/Debian (including WSL):** `sudo apt update && sudo apt install -y python3.11 python3.11-venv`. If multiple versions exist, run `sudo update-alternatives --config python3` on lab machines.
+- **Other distros:** install Python 3.11 via your package manager or pyenv; avoid 3.12 for this course.
 
 ### Issue: Tests don't run in VS Code Test Explorer
 
@@ -848,13 +920,13 @@ Then revisit the uv installation steps after the session.
 4. Select "pytest"
 5. Select "tests" as the test directory
 
-### Issue: Docker doesn't work on Windows
+### Issue: Docker Desktop + WSL integration pitfalls
 
 **Solution:**
 1. Verify WSL 2 is installed: `wsl --version`
-2. Open Docker Desktop → Settings → General → "Use WSL 2 based engine" is checked
-3. Go to Settings → Resources → WSL Integration → enable integration with your distro
-4. Restart Docker Desktop
+2. In Docker Desktop → Settings → General, ensure "Use WSL 2 based engine" is checked
+3. Under Resources → WSL Integration, enable your Linux distro
+4. Restart Docker Desktop, then rerun `docker run --rm hello-world`
 
 ### Issue: `ModuleNotFoundError: No module named 'httpx'`
 
@@ -885,6 +957,14 @@ uv run python -c "import httpx; client = httpx.Client(); print(client.get('https
   PY
   ```
 
+### Issue: `uv add …` times out
+
+**Solution:**
+```bash
+uv --network-timeout 60 add pytest==8.*
+```
+Raising the timeout usually resolves slow mirror responses. Persistent failures typically indicate a proxy/firewall configuration problem—capture it with PARD and escalate.
+
 ### Issue: Can't push to GitHub (permission denied)
 
 **Solution for SSH:**
@@ -911,9 +991,8 @@ cat ~/.ssh/id_ed25519.pub
 ### Issue: VS Code `code` command doesn't work
 
 **Solution:**
-- **Mac:** Open VS Code → Command Palette (Cmd+Shift+P) → "Shell Command: Install 'code' command in PATH"
-- **Windows:** Should work by default, make sure VS Code is in your PATH
-- **Linux:** Usually works after install, or add to `.bashrc`: `export PATH="$PATH:/usr/share/code/bin"`
+- **macOS:** Open VS Code → Command Palette (Cmd+Shift+P) → "Shell Command: Install 'code' command in PATH"
+- **Linux/WSL:** Add VS Code’s bin directory to your PATH, e.g. `export PATH="$PATH:/usr/share/code/bin"`
 
 ---
 
