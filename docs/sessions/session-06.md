@@ -36,7 +36,34 @@
 3. **CORS and rate limiting:** Remind students the API must support front-end origins; preview `slowapi` from Session 10 for rate limiting.
 4. **Developer UX:** Typer commands orchestrate seeding tasks; Rich progress bars give visual feedback during longer ETL operations.
 
+### FastAPI CORS configuration (copy/paste before class)
+Add this middleware near the top of `app/main.py` so both Streamlit and Vite development servers can reach the API:
+```python
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI(title="Movie Service", version="0.2.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:8501",  # Streamlit
+        "http://localhost:5173",  # Vite (default)
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+```
+Encourage students to add their own dev origin if they change ports or hostnames.
+
 ## Part B – Hands-on Lab 1 (45 Minutes)
+
+### Lab timeline
+- **Minutes 0–5** – Confirm API is running with CORS middleware.
+- **Minutes 5–20** – Implement the typed `httpx` client and caching helper.
+- **Minutes 20–35** – Build the Streamlit dashboard, add Rich progress, celebrate quick win.
+- **Minutes 35–45** – Experiment with caching invalidation and plan UI backlog items.
+
 ### 1. Build typed API client (`frontend/client.py`)
 ```python
 from __future__ import annotations
@@ -83,12 +110,20 @@ else:
 ```
 Run `uv run streamlit run frontend/dashboard.py` and show the live dashboard. Point out how Rich progress pairs with Streamlit (console + UI spinner).
 
+> 🎉 **Quick win:** When the dashboard renders `Total movies`, the full stack (FastAPI → SQLite → Streamlit) is talking end-to-end.
+
 ### 3. Discuss caching + invalidation
 - Modify one movie via API, rerun Streamlit, and talk about cache busting (`st.cache_data.clear()`) vs. background refresh.
 - Note: for React we’ll implement caching with React Query or SWR; capture this as backlog.
 
 ## Part C – Lab 2 (45 Minutes)
 Pick the path that matches your students:
+
+### Lab timeline
+- **Minutes 0–10** – Scaffold Vite (or identify Streamlit extension path).
+- **Minutes 10–20** – Build `services/movies.ts` and verify fetch in browser.
+- **Minutes 20–35** – Layer UI components, handle error states, and run `pnpm dev`.
+- **Minutes 35–45** – Implement Typer seeding CLI and document usage.
 
 ### Option A – React focus (group work)
 1. Scaffold (if using pnpm):
@@ -184,17 +219,35 @@ Pick the path that matches your students:
        app()
    ```
    Run `uv run python scripts/admin.py seed --sample 3` and confirm movies appear in the dashboard.
+   > 🎉 **Quick win:** When the CLI reports “Seed complete,” refresh Streamlit/React to see instant content with no manual data entry.
 2. Document CLI usage in README and remind students to log AI assistance.
 
 ## Wrap-up & EX2 Launch
 - EX2 (Frontend Choices) assigned today, due **Tue Dec 23**. Choose Streamlit or React, deliver UI + tests + usage docs.
 - Checklist: API integration with trace IDs, caching strategy, Typer admin tooling, README updates, optional React testing harness.
 - Backlog ideas: pagination controls, CSV export button (Session 10), feature flags to toggle beta UI, embed OpenAPI responses for doc parity.
+- Full rubric lives in [docs/exercises.md](../exercises.md#ex2--frontend-choices). Review the “must have” vs. “stretch” criteria before students pick their stack.
+
+### Common pitfalls
+- **CORS still blocked** – verify the exact origin (including port) matches `allow_origins`. For quick testing, temporarily set `allow_origins=["*"]` then tighten again.
+- **Streamlit stuck on old data** – call `st.cache_data.clear()` after POST/DELETE requests or add a “Refresh” button that invalidates cache.
+- **pnpm dev fails** – ensure Node ≥ 20 and run `corepack enable`; on macOS, install via `brew install node`.
+- **Rich progress bar not visible** – confirm you run Streamlit via `uv run`; standard `streamlit run` may not pick up your uv-managed dependencies.
 
 ## Troubleshooting
 - **CORS errors** → ensure FastAPI enables CORS (`from fastapi.middleware.cors import CORSMiddleware`) with allowed origins covering Streamlit/React hosts.
 - **Streamlit caching stale** → call `st.cache_data.clear()` after mutations or pass unique keys.
 - **pnpm install issues** → check Node version (>=20) and run `corepack enable`.
+
+## Student Success Criteria
+
+By the end of Session 06, every student should be able to:
+
+- [ ] Display live movie data in Streamlit using a typed API client with caching.
+- [ ] Scaffold a Vite/React app that loads movies via an `axios` service and handles error states.
+- [ ] Use a Typer CLI to seed sample data while tracking progress with Rich.
+
+**If a student misses any box, book a pairing session before Session 07 to keep EX2 on track.**
 
 ## AI Prompt Seeds
 - “Write a Streamlit dashboard that calls a FastAPI `/movies` endpoint and displays metrics.”

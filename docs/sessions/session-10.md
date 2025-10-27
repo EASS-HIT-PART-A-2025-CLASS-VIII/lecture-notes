@@ -37,6 +37,12 @@
 5. **CI pipeline:** Compose for local dev, GitHub Actions for CI (use services job with `services.redis`, run `uv sync --frozen`, `pytest --cov`, `schemathesis`).
 
 ## Part B – Hands-on Lab 1 (45 Minutes)
+
+### Lab timeline
+- **Minutes 0–10** – Scaffold `compose.yaml` and review service relationships.
+- **Minutes 10–25** – Add cache + rate limit environment variables and healthchecks.
+- **Minutes 25–35** – Launch the stack (`docker compose up`) and verify health endpoints.
+- **Minutes 35–45** – Wire Arq worker + caching helper and explore logs.
 ### 1. Compose file (`compose.yaml`)
 ```yaml
 services:
@@ -77,6 +83,14 @@ services:
       retries: 5
 ```
 Explain networks (default) and volumes (add later for persistence if needed).
+
+Spin everything up:
+```bash
+docker compose up --build
+```
+Keep the stack running while you exercise the API and worker.
+
+> 🎉 **Quick win:** When `docker compose ps` shows healthy API/worker/redis services, you’re operating a multi-service stack locally.
 
 ### 2. Redis client helper (`app/cache.py`)
 ```python
@@ -175,6 +189,12 @@ async def list_movies(repository: RepositoryDep, settings: SettingsDep) -> list[
 Remember to invalidate cache in POST/PUT/DELETE handlers.
 
 ## Part C – Lab 2 (45 Minutes)
+
+### Lab timeline
+- **Minutes 0–10** – Run Schemathesis against the live Compose stack.
+- **Minutes 10–25** – Add GitHub Actions job steps for tests + contract checks.
+- **Minutes 25–35** – Implement rate limiting tests (429) and headers.
+- **Minutes 35–45** – Update service contract docs and capture artifacts for EX3.
 ### 1. Contract tests with Schemathesis
 ```bash
 uv run schemathesis run http://localhost:8000/openapi.json --checks status_code_conformance --workers 2
@@ -222,11 +242,27 @@ Update `docs/service-contract.md` with:
 ## Wrap-up & Next Steps
 - ✅ Compose stack, Redis cache + rate limiting, background worker, contract testing, CI pipeline outline.
 - Prep for Session 11 (Security Foundations): audit secrets, rotate tokens, create `.env.example` entries for Redis auth if enabled.
+- Point teams to the EX3 brief in [docs/exercises.md](../exercises.md#ex3--advanced-backend--compose) so they align infrastructure deliverables with the milestone.
 
 ## Troubleshooting
 - **Redis connection refused** → confirm Compose network is up or local Redis running; check `redis_url` env.
 - **Slow Schemathesis runs** → narrow to critical endpoints with `--endpoint` filter or run in CI nightly.
 - **Arq import error** → install `uv add "arq==0.*"`; ensure worker service uses same image/tag as API.
+
+### Common pitfalls
+- **Compose race conditions** – use `depends_on` with `condition: service_healthy` to avoid worker failures when Redis isn’t ready.
+- **Environment drift** – keep `.env` defaults aligned with `compose.yaml` to prevent mismatched URLs locally vs. CI.
+- **Schemathesis hitting old schema** – regenerate `openapi.json` after code changes or mount the live URL instead of static file.
+
+## Student Success Criteria
+
+By the end of Session 10, every student should be able to:
+
+- [ ] Run the FastAPI API, Redis, worker, and proxy together via Docker Compose.
+- [ ] Enforce rate limits and cache hits backed by Redis inside the stack.
+- [ ] Execute contract tests (Schemathesis) and CI-ready pipelines covering the multi-service environment.
+
+**If any item lags, assign a small-group infra session before Security Foundations (Session 11).**
 
 ## AI Prompt Seeds
 - “Draft a docker-compose.yml with FastAPI, Redis, and an Arq worker including healthchecks.”

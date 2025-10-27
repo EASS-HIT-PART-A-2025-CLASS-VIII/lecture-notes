@@ -15,6 +15,15 @@
   uv add "pydantic-ai==0.*" "httpx==0.*"
   ```
 - Ensure LM Studio or vLLM is running locally (or know how to start the Docker image shared in LMS). Note the base URL.
+- Prefer vLLM? Pull and run TinyLlama ahead of time:
+  ```bash
+  docker run --rm -p 8000:8000 \
+    -v ~/.cache/huggingface:/root/.cache/huggingface \
+    vllm/vllm-openai:latest \
+    --model TinyLlama/TinyLlama-1.1B-Chat-v1.0
+
+  curl http://localhost:8000/v1/models  # confirm the endpoint is live
+  ```
 - Update your EX2 README with AI usage to date; bring one prompt you felt proud of and one that failed.
 - Optional: skim the MCP primer to prepare for Session 12’s tool-friendly APIs.
 
@@ -41,6 +50,13 @@
 5. **Attribution:** Update README changelog or PR template with “AI-assisted sections” including prompt summary.
 
 ## Part B – Lab 1 (45 Minutes)
+
+### Lab timeline
+- **Minutes 0–10** – Draft/collect specs before prompting.
+- **Minutes 10–25** – Prompt the assistant for implementations (tests-first), review diffs, and run pytest.
+- **Minutes 25–35** – Toggle telemetry flag and capture accepted AI suggestions in Logfire.
+- **Minutes 35–45** – Document prompts in `docs/ai-usage.md` and prepare for agent integration.
+
 ### 1. Extend API with AI assistance
 Suggested prompt (Cursor/Copilot/ChatGPT):
 ```
@@ -53,6 +69,8 @@ Show diffs and include brief rationale before each change.
 ```
 Pair-program with the assistant: accept chunks you understand, reject anything unclear, and run `uv run pytest -q` after each step.
 
+> 🎉 **Quick win:** When pytest goes green on AI-generated changes, you just validated that the assistant followed your spec—commit the diff with confidence.
+
 ### 2. Capture telemetry toggle
 Add environment variable `AI_TELEMETRY_ENABLED=true|false` (default false) in settings. When true, log accepted suggestions via Logfire so you can audit AI contributions.
 
@@ -60,6 +78,13 @@ Add environment variable `AI_TELEMETRY_ENABLED=true|false` (default false) in se
 Add a subsection in `README.md` or `docs/ai-usage.md` summarizing prompts used in class, including tool name and link to diff.
 
 ## Part C – Lab 2 (45 Minutes)
+
+### Lab timeline
+- **Minutes 0–10** – Configure LM Studio/vLLM endpoints and environment variables.
+- **Minutes 10–20** – Build the Pydantic AI tool wrapper and validate schema enforcement.
+- **Minutes 20–35** – Add automated tests (tool-only transport) and review telemetry.
+- **Minutes 35–45** – Run local agent demo, discuss failure handling, capture takeaways.
+
 ### 1. Build a Pydantic AI tool wrapper (`agents/movies.py`)
 ```python
 from __future__ import annotations
@@ -159,14 +184,32 @@ Explain `transport="tool-only"` executes tools without calling an LLM—perfect 
 - vLLM Docker (from LMS script) listens on `http://localhost:8000/v1`; run `docker compose up vllm` to start.
 - Use Logfire toggle to capture agent runs when telemetry enabled.
 
+> 🎉 **Quick win:** Once `agent.run(...)` returns structured recommendations without touching an external API, you have a reproducible agent test harness ready for EX3 demos.
+
 ## Retrospective & Next Steps
 - Share prompt wins/fails; compile a shared `prompts.md` with best practices.
 - Action items: finalize EX2 deliverables, keep AI usage logs current, prep for Session 09 (async + reliability).
+
+### Common pitfalls
+- **LLM endpoint unreachable** – double check Docker port mapping (`-p 8000:8000`), and inspect container logs with `docker logs <id>`.
+- **Telemetry swamping logs** – set `AI_TELEMETRY_ENABLED=false` when iterating quickly; re-enable before shipping to capture provenance.
+- **Tool-only tests fail** – ensure mock transport returns `{"data": {...}}` matching the real API envelope.
+- **Prompt drift** – remind students to pin prompts in `docs/ai-usage.md`; treat them like fixtures for future debugging.
 
 ## Troubleshooting
 - **Agent import errors** → ensure `pydantic-ai` is installed and version pinned.
 - **HTTP 401 from LM Studio** → check API key requirements; many local models accept dummy tokens but require the header.
 - **Tool-only tests failing** → verify FastAPI endpoint returns deterministic structure and update schemas accordingly.
+
+## Student Success Criteria
+
+By the end of Session 08, every student should be able to:
+
+- [ ] Pair with an AI assistant using spec/tests-first prompts and validate changes via pytest.
+- [ ] Wrap a FastAPI endpoint in a Pydantic AI tool and exercise it with tool-only tests.
+- [ ] Connect to a local LLM endpoint (LM Studio or vLLM) and capture telemetry for agent runs.
+
+**If any item is unchecked, assign a follow-up pairing before Session 09 to keep EX2/EX3 on schedule.**
 
 ## AI Prompt Seeds
 - “Act as a senior FastAPI reviewer. Given this diff, highlight risks before I accept it.”

@@ -38,6 +38,13 @@
 5. **OWASP highlights:** Broken auth, excessive data exposure, lack of rate limiting (already addressed). Tie back to previous sessions.
 
 ## Part B – Lab 1 (45 Minutes)
+
+### Lab timeline
+- **Minutes 0–10** – Wire bcrypt hashing and verify by logging a hashed password.
+- **Minutes 10–25** – Implement `/token` endpoint, ensure fake user logins succeed.
+- **Minutes 25–35** – Issue JWTs with roles/expiry and add settings entries.
+- **Minutes 35–45** – Protect one endpoint with `require_role` and smoke-test with curl.
+
 ### 1. User model & hashing (`app/security.py`)
 ```python
 from datetime import datetime, timedelta
@@ -137,6 +144,8 @@ def login(
 ```
 Mount router in `app/main.py` and guard protected endpoints.
 
+> 🎉 **Quick win:** When `uv run pytest tests/test_security.py::test_login_returns_token -q` returns a green dot, you’ve confirmed hashing + JWT issuance work together.
+
 ### 3. Dependency for protected routes
 ```python
 from fastapi import Depends, HTTPException, Security, status
@@ -170,6 +179,12 @@ def require_role(*allowed_roles: str):
 Apply `require_role("editor")` to sensitive routes (e.g., recommendation tools, admin updates).
 
 ## Part C – Lab 2 (45 Minutes)
+
+### Lab timeline
+- **Minutes 0–10** – Write security-focused tests for login and protected endpoints.
+- **Minutes 10–25** – Add token expiry checks and role guard coverage.
+- **Minutes 25–35** – Run secret scanners; update `docs/security-checklist.md`.
+- **Minutes 35–45** – Demonstrate curl workflow (with/without token) and document remediation steps.
 ### 1. Security tests (`tests/test_security.py`)
 ```python
 from fastapi.testclient import TestClient
@@ -217,6 +232,23 @@ Update `docs/security-checklist.md` with:
 ### 4. Optional stretch – refresh tokens
 Create `/token/refresh` endpoint issuing new tokens if refresh token valid; store refresh tokens hashed in Redis.
 
+### Verify tokens with curl (demo script)
+```bash
+# Step 1: Fetch a token
+TOKEN=$(curl -s -X POST http://localhost:8000/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=teacher&password=classroom" \
+  | jq -r '.access_token')
+
+# Step 2: Call a protected endpoint
+curl -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8000/movies
+
+# Step 3: Confirm unauthorized request fails
+curl -i http://localhost:8000/movies
+```
+Encourage students to add the script to `scripts/security-smoke.sh` so QA teams can reuse it.
+
 ## Wrap-up & Next Steps
 - ✅ Password hashing, JWT issuance, role guards, security tests, secret scanning.
 - Prep for Session 12: finalize documentation, tool-friendly API design, publish `docs/service-contract.md` updates, and gather all EX3 deliverables.
@@ -225,6 +257,21 @@ Create `/token/refresh` endpoint issuing new tokens if refresh token valid; stor
 - **`bcrypt` missing build prerequisites** → ensure `rust`/`gcc` installed or use prebuilt wheels (should work on macOS/Linux). On Windows/WSL, install `build-essential`.
 - **Invalid JWT** → verify `aud`/`iss` match; align Settings across services (worker, API, CLI).
 - **Token not accepted by Swagger UI** → set OAuth2 config in FastAPI app: `app = FastAPI(swagger_ui_init_oauth={"clientId": "web"})` if needed.
+
+### Common pitfalls
+- **Clock skew causing “token expired” errors** – sync host clocks or inject fixed datetimes during tests (e.g., via `freezegun`).
+- **Secrets checked into git** – run `trufflehog` before commits and rotate anything flagged immediately.
+- **Role mismatch** – log decoded payload roles locally (strip in production) and ensure `_FAKE_USERS` entries match `require_role` guards.
+
+## Student Success Criteria
+
+By the end of Session 11, every student should be able to:
+
+- [ ] Hash and verify passwords with `passlib[bcrypt]` instead of storing plaintext credentials.
+- [ ] Issue and validate JWTs (with `iss`, `aud`, `exp`, and roles) that gate at least one endpoint.
+- [ ] Run security smoke tests (pytest + curl) and share clean secret-scan results.
+
+**If a student cannot check a box, schedule a security-focused pairing before Session 12.**
 
 ## AI Prompt Seeds
 - “Generate FastAPI login endpoint that hashes passwords with passlib, returns JWT with exp/iss/aud claims.”

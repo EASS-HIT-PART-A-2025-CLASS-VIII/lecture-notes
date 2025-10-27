@@ -38,6 +38,12 @@
 5. **Performance probes:** run `time.perf_counter()` or `uv run python -m cProfile` as a quick sanity check; mention `py-spy` for offline analysis.
 
 ## Part B – Hands-on Lab 1 (45 Minutes)
+
+### Lab timeline
+- **Minutes 0–10** – Wire autouse fixtures and dependency overrides.
+- **Minutes 10–25** – Add parametrized tests covering happy/sad paths.
+- **Minutes 25–35** – Introduce Hypothesis property checks.
+- **Minutes 35–45** – Capture snapshots and review failures via Logfire.
 ### 1. Enhance fixtures (`tests/conftest.py`)
 ```python
 from collections.abc import Generator
@@ -83,6 +89,22 @@ def client(repo: MovieRepository) -> Generator[Any, None, None]:
 Explain how autouse fixture guarantees clean state and why we override the dependency for deterministic tests.
 
 ### 2. Parametrized & property-based tests (`tests/test_movies.py`)
+Remember the generic parametrization pattern:
+```python
+import pytest
+
+@pytest.mark.parametrize(
+    ("a", "b", "expected"),
+    [
+        (2, 2, 4),
+        (0, 5, 5),
+        (-1, 1, 0),
+    ],
+)
+def test_addition(a: int, b: int, expected: int) -> None:
+    assert a + b == expected
+```
+Reuse the structure below for FastAPI payloads.
 ```python
 import pytest
 from hypothesis import given, strategies as st
@@ -149,6 +171,12 @@ def test_movies_list_snapshot(client):
 Explain review process: snapshot updates require human approval.
 
 ## Part C – Hands-on Lab 2 (45 Minutes)
+
+### Lab timeline
+- **Minutes 0–10** – Instrument FastAPI with Logfire.
+- **Minutes 10–25** – Run coverage reports and address gaps.
+- **Minutes 25–35** – Collect profiling data (`timeit`, `cProfile`).
+- **Minutes 35–45** – Correlate Logfire traces with Hypothesis failures.
 ### 1. Wire Logfire into FastAPI
 Install (already done) and configure `logfire` in `app/observability.py`:
 ```python
@@ -183,6 +211,8 @@ uv run pytest --cov=app --cov-report=term-missing
 ```
 Interpret missing lines, add tests, rerun. Document how to wire into GitHub Actions (Session 10).
 
+> 🎉 **Quick win:** Hitting 80%+ coverage with a clean report means EX2 submissions can ship with confidence—screenshot the terminal for your README.
+
 ### 3. Lightweight profiling
 - Wrap a repository call with `time.perf_counter()` before/after; log duration.
 - Optional: `uv run python -m cProfile -o profile.out app/scripts/seed.py` and open with `snakeviz` (install if desired).
@@ -199,6 +229,21 @@ Interpret missing lines, add tests, rerun. Document how to wire into GitHub Acti
 - **Hypothesis health check warnings** → adjust strategies or increase `deadline=None` for slower tests.
 - **Logfire authentication** → ensure environment variable `LOGFIRE_API_KEY` is set; fall back to `send_to_logfire=False` for offline demo.
 - **Coverage missing modules** → check `__init__.py` files and ensure tests import the modules under test.
+
+### Common pitfalls
+- **Flaky Hypothesis tests** – cap `max_examples` temporarily and log failing seeds for deterministic reruns.
+- **Snapshot drift** – update snapshots only after code review; commit baseline fixtures alongside code.
+- **Logfire noise** – set `send_to_logfire=False` during load testing to avoid rate limits, then re-enable for demos.
+
+## Student Success Criteria
+
+By the end of Session 07, every student should be able to:
+
+- [ ] Use parametrized and property-based tests to exercise FastAPI endpoints.
+- [ ] Generate coverage reports and interpret missing-line output.
+- [ ] Instrument the app with Logfire, correlating trace IDs across logs and tests.
+
+**If a box is unchecked, host a testing tune-up before Session 08.**
 
 ## AI Prompt Seeds
 - “Write pytest fixtures that override FastAPI dependencies with a temporary SQLite database.”

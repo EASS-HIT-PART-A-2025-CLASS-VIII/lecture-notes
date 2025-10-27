@@ -44,6 +44,12 @@
 5. **Reverse proxy preview:** `nginx` handles TLS, compression, static caching; our app stays simple.
 
 ## Part B – Hands-on Lab 1 (45 Minutes)
+
+### Lab timeline
+- **Minutes 0–10** – Confirm `/health` readiness response and review `.dockerignore`.
+- **Minutes 10–25** – Author the multi-stage Dockerfile (builder + runtime).
+- **Minutes 25–35** – Build the image, run the container, inspect logs.
+- **Minutes 35–45** – Analyze layer sizes and discuss optimization.
 ### 1. Update FastAPI app for readiness probe (optional but recommended)
 In `app/main.py`, ensure `/health` returns `{"status": "ok"}` quickly—no DB calls yet. This keeps Docker healthchecks fast.
 
@@ -103,6 +109,8 @@ curl -H "X-Trace-Id: docker-demo" http://localhost:8000/movies
 ```
 Show the log line with the trace ID (thanks to Session 03 middleware). Stop the container with `Ctrl+C`.
 
+> 🎉 **Quick win:** When `docker run …` responds to `curl /health`, you’ve proven the container image works independently of your laptop’s Python environment.
+
 ### 4. Inspect layers & size
 ```bash
 docker image ls movies-api:multi-stage
@@ -110,6 +118,12 @@ docker image ls movies-api:multi-stage
 Compare against a quick single-stage build (for teaching only) and note the size delta.
 
 ## Part C – Hands-on Lab 2 (45 Minutes)
+
+### Lab timeline
+- **Minutes 0–10** – Author nginx config and discuss headers.
+- **Minutes 10–25** – Launch API + proxy containers on shared network.
+- **Minutes 25–35** – Verify proxy requests and inspect logs.
+- **Minutes 35–45** – Clean up containers and brainstorm Compose extensions.
 ### 1. Prepare `ops/nginx.conf`
 ```nginx
 server {
@@ -141,6 +155,22 @@ curl -H "X-Trace-Id: proxy-demo" http://localhost:8080/health
 ```
 Use `docker logs movies-api` to show the trace ID from the proxy, then `docker logs movies-proxy` to highlight request forwarding.
 
+Double-check end-to-end routing:
+```bash
+# Direct API
+curl -i http://localhost:8000/health
+
+# Through nginx proxy
+curl -i http://localhost:8080/health
+
+# Compare headers to verify proxy involvement
+curl -I http://localhost:8000/health
+curl -I http://localhost:8080/health
+```
+Point out any additional headers (e.g., `Server: nginx/…`) to confirm the proxy path.
+
+> 🎉 **Quick win:** When both curls return `200 OK` (and nginx headers appear), you’ve successfully mimicked a production-ready reverse proxy.
+
 ### 3. Cleanup
 ```bash
 docker rm -f movies-api movies-proxy
@@ -171,11 +201,27 @@ services:
 - **Due Tue Dec 2, 23:59.**
 - Minimum checklist: CRUD endpoints, tests, Docker image (`movies-api:multi-stage`), README instructions, AI usage notes.
 - **Stretch/backlog ideas:** add `HEALTHCHECK` to Dockerfile (done), produce `docker compose` override, prebuild GitHub Actions job using cache (`uv sync --frozen`), and document `X-Trace-Id` behavior in README.
+- Reference the complete rubric in [docs/exercises.md](../exercises.md#ex1--backend-foundations) so teams know which Docker deliverables are required.
 
 ## Troubleshooting
 - **Permission denied binding ports** → ensure Docker Desktop is running and port 8000/8080 free (`lsof -i :8000`).
 - **Healthcheck failing** → confirm `/health` endpoint is reachable and returns 200 quickly.
 - **Large image** → check `.dockerignore`, ensure `uv sync` runs with `--no-dev`, prune with `docker image prune` if disk is low.
+
+### Common pitfalls
+- **`uv` missing inside container** – confirm `ENV PATH` includes `/root/.local/bin` in builder stage and `/home/app/.local/bin` in runtime.
+- **Permission denied writing logs** – ensure `chown -R app:app /app` before switching to `USER app`.
+- **Proxy loop (502)** – verify nginx `proxy_pass` uses the container name (`movies-api`) and both containers share the same Docker network.
+
+## Student Success Criteria
+
+By the end of Session 04, every student should be able to:
+
+- [ ] Build and run a non-root multi-stage Docker image for the FastAPI service.
+- [ ] Validate the container via `/health` and inspect logs that show propagated trace IDs.
+- [ ] Stand up an nginx reverse proxy that serves traffic through `http://localhost:8080`.
+
+**Missing a checkbox? Queue up an office hour before Session 05.**
 
 ## AI Prompt Seeds
 - “Write a multi-stage Dockerfile that installs dependencies with uv and runs FastAPI as a non-root user.”

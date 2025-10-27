@@ -48,6 +48,12 @@
 5. **Trace propagation:** If the client sends `X-Trace-Id`, echo it back. Otherwise generate and log it. Mention Logfire (Session 07) will hook into the same context.
 
 ## Part B – Hands-on Lab 1 (45 Minutes)
+
+### Lab timeline
+- **Minutes 0–10** – Create `Settings` and repository scaffolding.
+- **Minutes 10–25** – Wire FastAPI routes with dependency injection.
+- **Minutes 25–35** – Add trace-ID middleware and logging.
+- **Minutes 35–45** – Smoke-test endpoints via Swagger UI and curl.
 ### 1. Create `app/config.py`
 ```python
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -229,6 +235,8 @@ uv run uvicorn app.main:app --reload
 ```
 Navigate to `http://localhost:8000/docs` and show how the OpenAPI schema reflects response models and error codes. Point out the `X-Trace-Id` header in the Response tab.
 
+> 🎉 **Quick win:** Seeing `/health` return `{"status": "ok", "app": "Movie Service"}` confirms your DI wiring and middleware are behaving.
+
 ### 6. Optional: seed feature-preview data
 Add `scripts/seed.py`:
 ```python
@@ -248,6 +256,12 @@ else:
 Run `uv run python scripts/seed.py` after toggling `MOVIE_FEATURE_PREVIEW=true` in `.env` to demo feature flags.
 
 ## Part C – Hands-on Lab 2 (45 Minutes)
+
+### Lab timeline
+- **Minutes 0–10** – Configure `TestClient` and baseline tests.
+- **Minutes 10–25** – Add 201/404/validation cases with headers.
+- **Minutes 25–35** – Practice red→green by breaking/restoring validation logic.
+- **Minutes 35–45** – Export OpenAPI schema and discuss contract testing.
 ### 1. Create tests with `TestClient`
 `tests/test_movies.py`:
 ```python
@@ -283,6 +297,8 @@ def test_missing_movie_returns_404():
 ```
 Run `uv run pytest -q` and celebrate the green dots.
 
+> 🎉 **Quick win:** Green dots mean your API contract survived a full test run—commit the suite before moving to migrations.
+
 ### 2. Red→green ritual
 - Comment out the `normalize_genre` validator → rerun tests (expect failure) → restore it.
 - Capture a screenshot of the failing assertion to emphasize evidence-based debugging.
@@ -307,11 +323,27 @@ Share that Schemathesis (Session 02 stretch) can now target the real schema.
 - ✅ FastAPI CRUD skeleton with DI, settings, trace propagation, and tests.
 - Add before next week: `PUT /movies/{id}`, pagination parameters (`skip`, `limit` defaults from `Settings`), error normalization matching Session 02 spec, and README updates.
 - Remind students to log AI usage, keep `.env.example` updated, and push often.
+- Point everyone to the full brief in [docs/exercises.md](../exercises.md#ex1--backend-foundations) to double-check rubric expectations.
 
 ## Troubleshooting
 - **ImportError for `BaseSettings`:** verify `pydantic-settings==2.*` is installed; rerun `uv add` if needed.
 - **State bleeding between tests:** temporarily call cleanup methods in tests; Session 07 introduces fixtures for isolation.
 - **OpenAPI docs not reloading:** ensure `uvicorn` is running with `--reload` and refresh the browser.
+
+### Common pitfalls
+- **Global state leaks** – avoid mutating module-level dictionaries in tests; create fixtures to reset state.
+- **Trace-ID missing in responses** – middleware must run before routes; double-check it’s added near app definition.
+- **Validation errors hard to read** – use `response.json()` in tests to assert `detail` values explicitly.
+
+## Student Success Criteria
+
+By the end of Session 03, every student should be able to:
+
+- [ ] Configure FastAPI with dependency-injected settings and repositories.
+- [ ] Expose CRUD endpoints that propagate `X-Trace-Id` headers.
+- [ ] Run pytest suites covering happy paths and 404/422 error paths.
+
+**If any box remains unchecked, schedule a mentor session before Session 04.**
 
 ## AI Prompt Seeds
 - “Generate FastAPI endpoints that use dependency injection for settings and in-memory repositories.”

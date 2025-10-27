@@ -48,8 +48,16 @@
    Ask: “What are the headers? Where would you stash correlation IDs?”
 5. **REST heuristics:** Use nouns (`/movies`, `/movies/{movie_id}/ratings`), keep verbs in query/body, make `PUT` idempotent, and document error shapes.
 6. **Preview EX1 contract requirements:** health endpoint, CRUD, predictable error payloads, coverage reports (Session 07), Docker packaging (Session 04).
+7. **AWS Academy checkpoint:** Ask each table, “Have you enrolled in AWS Academy Cloud Foundations and started the Compute module? What’s your target wrap-up date (before Nov 25)?” Capture blockers immediately.
 
 ## Part B – Hands-on Lab 1 (45 Minutes)
+
+### Lab timeline
+- **Minutes 0–5** – Scaffold folders and install packages.
+- **Minutes 5–20** – Implement the reusable HTTP client and discuss trace IDs.
+- **Minutes 20–35** – Wrap the client with Typer commands and experiment with parameters.
+- **Minutes 35–45** – Optional pytest smoke test plus log review.
+
 ### 1. Setup commands
 ```bash
 cd hello-uv
@@ -148,6 +156,8 @@ uv run python -m app.cli headers --city London
 ```
 Ask students to highlight the `X-Trace-Id` header in the output and explain why we will propagate it into FastAPI logs next week.
 
+> 🎉 **Quick win:** Seeing `Server echoed our args` in the terminal confirms your Typer CLI can talk to live HTTP services without needing a browser.
+
 ### 5. Optional extension – quick pytest
 ```bash
 mkdir -p tests
@@ -166,6 +176,13 @@ uv run pytest -q
 Encourage students to keep the test even if httpbin occasionally flakes—later we will replace it with a mocked contract.
 
 ## Part C – Hands-on Lab 2 (45 Minutes)
+
+### Lab timeline
+- **Minutes 0–10** – Capture GET/POST examples in `.http`.
+- **Minutes 10–25** – Normalize error envelopes and map them to EX1 requirements.
+- **Minutes 25–35** – Explore Schemathesis stretch goal and discuss contract testing.
+- **Minutes 35–45** – Document decisions and share findings in Discord thread.
+
 ### 1. Create reusable `.http` scripts
 `requests.http`:
 ```
@@ -208,14 +225,31 @@ uv run schemathesis run "$urql" --checks status_code_conformance
 Reinforce that contract tests are optional now but required for excellence submissions.
 
 ## EX1 Briefing & Backlog Hit List
+- Link to the full brief in [docs/exercises.md](../exercises.md#ex1--backend-foundations). Highlight rubric sections students must satisfy for a baseline pass vs. excellence.
 - Deliverable: FastAPI CRUD for `/movies`, deterministic JSON errors, 80% branch coverage, Docker image (Session 04) by **Tue Dec 2**.
 - **Backlog ideas:** feature flags for beta endpoints, pagination & filtering conventions, rate limiting (`slowapi`) with a 429 test, OpenAPI examples for happy/sad paths, ETag/`If-None-Match` demo for caching.
 - Encourage journaling any stretch goals so we can fold them into Sessions 07–10.
+
+### Common pitfalls
+- **Forgetting AWS Academy enrollment** – log into the portal now; if you cannot access Compute module #1, ping the instructor during lab.
+- **Typer command exits immediately** – ensure `if __name__ == "__main__":` block calls `main()`.
+- **HTTP timeout** – add `timeout=httpx.Timeout(30.0)` while diagnosing network hiccups; verify campus VPN/proxy settings if failures persist.
+- **REST Client 401s** – double check you copied the `X-Trace-Id` header; some APIs reject requests without it later in the course.
 
 ## Troubleshooting Notes
 - `urllib3` SSL errors: run `export SSL_CERT_FILE=$(python -m certifi)` on macOS if needed.
 - `httpx.ConnectTimeout`: demonstrate adding `timeout=httpx.Timeout(30.0)` and retrying later with `async` client in Session 09.
 - VS Code REST Client not installed? Use `uv run python -m http.client` as a backup but fix the extension before EX1.
+
+## Student Success Criteria
+
+By the end of Session 02, every student should be able to:
+
+- [ ] Capture and explain each component of an HTTP request/response using real traffic from `httpbin.org`.
+- [ ] Automate exploratory requests through a Typer CLI that prints validated JSON and trace IDs.
+- [ ] Produce a `.http` collection and error-envelope checklist that will seed EX1 tests.
+
+**If a student cannot check any box above, schedule an office-hours pairing before Session 03.**
 
 ## AI Prompt Seeds
 - “Explain like I’m a TA how to surface `X-Trace-Id` headers from `httpx` responses in logs.”

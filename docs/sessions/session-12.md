@@ -37,6 +37,12 @@
 5. **Release checklist:** version bump, `uv sync --frozen`, `docker compose build`, smoke tests, tag release, update docs.
 
 ## Part B – Lab 1 (45 Minutes)
+
+### Lab timeline
+- **Minutes 0–10** – Add pagination helper + headers.
+- **Minutes 10–25** – Implement ETag logic with conditional GET.
+- **Minutes 25–35** – Build CSV export endpoint and verify streaming.
+- **Minutes 35–45** – Document OpenAPI examples + feature flags.
 ### 1. Pagination helpers (`app/pagination.py`)
 ```python
 from math import ceil
@@ -119,6 +125,37 @@ async def list_movies(
 ```
 Ensure tests cover 200 + 304 paths.
 
+> 🎉 **Quick win:** When a second `curl` with `If-None-Match` returns `304`, you’ve implemented production-grade caching in under ten minutes.
+
+### Tool schema validation (`embed=True` pattern)
+Use nested models so FastAPI validates MCP-compatible payloads before they hit business logic:
+```python
+from pydantic import BaseModel, Field
+
+
+class ToolPayload(BaseModel):
+    user_id: int = Field(..., ge=1, description="User ID must be positive")
+    limit: int = Field(5, ge=1, le=20, description="Number of recommendations")
+
+
+class ToolRequest(BaseModel):
+    payload: ToolPayload
+
+
+@app.post("/tool/recommend-movie")
+async def recommend_tool(request: ToolRequest) -> dict[str, object]:
+    recs = await generate_recommendations(
+        user_id=request.payload.user_id,
+        limit=request.payload.limit,
+    )
+    return {
+        "status": "ok",
+        "data": {"recommendations": recs},
+        "error": None,
+    }
+```
+FastAPI’s `embed=True` defaults keep the MCP contract deterministic while still enforcing inner validation.
+
 ### 3. CSV export endpoint
 ```python
 from fastapi.responses import StreamingResponse
@@ -139,6 +176,12 @@ Add tests verifying content type, header, sample rows.
 Use `Settings.feature_preview` to gate experimental endpoints (toggle via `.env`). Document in README.
 
 ## Part C – Lab 2 (45 Minutes)
+
+### Lab timeline
+- **Minutes 0–10** – Generate docs (MkDocs/pdocs) and publish OpenAPI updates.
+- **Minutes 10–25** – Configure pre-commit hooks (Ruff + mypy) and run all files.
+- **Minutes 25–35** – Draft release checklist with automated tests + Docker builds.
+- **Minutes 35–45** – Rehearse MCP tool endpoint and capture deliverables for EX3.
 ### 1. Documentation build
 - Generate API docs: `uv run pdocs serve app` or `uv run mkdocs serve` (choose one per team).
 - Publish `docs/service-contract.md` updates with OpenAPI examples, rate limiting info, and agent endpoints.
@@ -163,6 +206,8 @@ pre-commit run --all-files
 ```
 Add `uv run ruff check .` and `uv run mypy app` to CI.
 
+> 🎉 **Quick win:** Seeing “All files pass” from `pre-commit run --all-files` means your release checklist can focus on features, not formatting.
+
 ### 3. Changelog & release checklist
 - Adopt Conventional Commits (`feat:`, `fix:`, `docs:`) or equivalent; generate changelog with `git cliff` or manual notes.
 - Final release checklist example:
@@ -171,6 +216,7 @@ Add `uv run ruff check .` and `uv run mypy app` to CI.
   3. Run smoke tests (`docker compose run api uv run pytest tests/smoketests`).
   4. Tag release (`git tag -a v0.3.0 -m "EASS EX3"`).
   5. Publish docs (`uv run mkdocs build && netlify deploy` or similar).
+- Map each checklist line to the [EX3 requirements](../exercises.md#ex3--advanced-backend--compose) so teams know which artifacts to submit.
 
 ### 4. MCP teaser
 Preview how today’s deterministic responses feed directly into the optional MCP workshop (tool endpoints for agents). Encourage teams to read `sessions/optional/mcp.md` before elective session.
@@ -184,6 +230,21 @@ Preview how today’s deterministic responses feed directly into the optional MC
 - **ETag mismatches** → ensure `ETag` computed on canonical JSON (sorted keys). Consider `json.dumps(..., sort_keys=True)`.
 - **Pre-commit slow** → use `--hook-stage manual` for heavy hooks, or run `uv run ruff --watch` during dev.
 - **CSV export encoding issues** → enforce UTF-8 and escape commas if titles contain them (use `csv` module if needed).
+
+### Common pitfalls
+- **Pagination math bugs** – test last page scenarios manually to confirm `X-Total-Pages` stays accurate.
+- **ETag ignoring embed payload** – be sure to serialize nested models the same way the API response does (`model_dump`).
+- **Pre-commit not running** – remind teams to run `pre-commit install` in each clone (containers included).
+
+## Student Success Criteria
+
+By the end of Session 12, every student should be able to:
+
+- [ ] Serve paginated endpoints with conditional GET/ETag support and CSV export.
+- [ ] Validate MCP tool payloads with nested Pydantic models ready for Session 12 agents.
+- [ ] Automate docs, linting, typing, and release checklists for EX3 handoff.
+
+**Incomplete item? Schedule a release rehearsal before EX3 demos.**
 
 ## AI Prompt Seeds
 - “Add pagination, total count headers, and OpenAPI examples to a FastAPI list endpoint.”

@@ -36,6 +36,12 @@
 4. **Instrumentation:** Keep `X-Trace-Id` consistent; plan to emit metrics (Session 10) using Prometheus/Redis.
 
 ## Part B – Lab 1 (45 Minutes)
+
+### Lab timeline
+- **Minutes 0–10** – Review refresher settings (`refresh_max_concurrency`, `trace_id`).
+- **Minutes 10–25** – Implement async refresher with semaphore + retries.
+- **Minutes 25–35** – Add idempotency keys and confirm with logs.
+- **Minutes 35–45** – Trigger jobs via Typer CLI and inspect trace IDs.
 ### 1. Async recommendation service (`app/recommendation.py`)
 ```python
 from __future__ import annotations
@@ -123,7 +129,15 @@ if __name__ == "__main__":
 ```
 Show logs with trace IDs and idempotency keys for each request.
 
+> 🎉 **Quick win:** Running `uv run python scripts/refresh.py run --limit 3` without duplicate inserts proves your idempotency guard is effective.
+
 ## Part C – Lab 2 (45 Minutes)
+
+### Lab timeline
+- **Minutes 0–10** – Mock async client with `ASGITransport` for in-process testing.
+- **Minutes 10–25** – Assert idempotency behavior and retry logic.
+- **Minutes 25–35** – Add caching hooks (Redis) and metrics counters.
+- **Minutes 35–45** – Inject failures, inspect Logfire counters, and document learnings.
 ### 1. Async tests with `ASGITransport`
 ```python
 import asyncio
@@ -161,6 +175,34 @@ Design FastAPI endpoint storing processed keys (in-memory for now). Write test t
 ### 4. Failure injection
 Use `pytest` to monkeypatch the endpoint and raise HTTP 500 on first attempt, confirm retry hits and eventual success.
 
+### 5. Redis caching for recommendations
+```python
+import json
+import os
+import redis
+
+r = redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+
+def cache_recommendations(user_id: int, recs: list[int]) -> None:
+    key = f"recs:{user_id}"
+    r.setex(key, 3600, json.dumps(recs))
+
+def get_cached_recommendations(user_id: int) -> list[int] | None:
+    key = f"recs:{user_id}"
+    data = r.get(key)
+    return json.loads(data) if data else None
+
+@app.get("/recommendations/{user_id}")
+async def recommend(user_id: int) -> dict[str, object]:
+    if cached := get_cached_recommendations(user_id):
+        return {"source": "cache", "recommendations": cached}
+
+    recs = await generate_recommendations(user_id)
+    cache_recommendations(user_id, recs)
+    return {"source": "fresh", "recommendations": recs}
+```
+Discuss TTL strategy (one hour here) and note how Session 10’s Redis deployment makes this production-ready.
+
 ## Wrap-up & Next Steps
 - ✅ Async refresher, retries with jitter, idempotency keys, async tests.
 - Prep for Session 10: bring Redis installed (`brew install redis` or `docker run redis`), and review Docker Compose basics.
@@ -169,6 +211,21 @@ Use `pytest` to monkeypatch the endpoint and raise HTTP 500 on first attempt, co
 - **`RuntimeError: Event loop is closed`** → avoid nested `asyncio.run`; use `pytest.mark.anyio` and `asyncio.get_event_loop_policy().new_event_loop()` if needed.
 - **Idempotency store resets** → persist keys in Redis (Session 10) or file for long-running jobs.
 - **Un-awaited coroutine warnings** → ensure every async call is awaited; use `pytest.raises` with async context for exceptions.
+
+### Common pitfalls
+- **Semaphore never releases** – wrap critical sections in `async with` to guarantee release even when exceptions occur.
+- **Idempotency keys collide** – include both `movie_id` and `user_id` (or timestamp bucket) to avoid overwriting legitimate requests.
+- **Redis connection refused** – ensure local Redis is running (`brew services start redis` or Docker container) before enabling caching.
+
+## Student Success Criteria
+
+By the end of Session 09, every student should be able to:
+
+- [ ] Refresh recommendations asynchronously with bounded concurrency and retries.
+- [ ] Write async pytest suites using `httpx.ASGITransport`/`pytest.mark.anyio`.
+- [ ] Cache recommendation results in Redis with idempotency keys to prevent duplicate work.
+
+**If any box stays unchecked, book an async lab session before Session 10.**
 
 ## AI Prompt Seeds
 - “Write an async refresher that batches POST requests with bounded concurrency and retries using tenacity.”

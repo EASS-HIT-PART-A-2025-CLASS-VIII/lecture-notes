@@ -38,6 +38,12 @@
 5. **Trace IDs & logging:** reuse request-level `X-Trace-Id` when logging DB actions to keep observability consistent.
 
 ## Part B – Hands-on Lab 1 (45 Minutes)
+
+### Lab timeline
+- **Minutes 0–10** – Configure the SQLite engine and verify `movies.db` creation.
+- **Minutes 10–25** – Model tables with SQLModel (movies + ratings).
+- **Minutes 25–35** – Generate and apply the first Alembic migration.
+- **Minutes 35–45** – Update repository + dependencies and run `uv run python scripts/db.py migrate`.
 ### 1. Configure the database engine (`app/db.py`)
 ```python
 from contextlib import contextmanager
@@ -180,7 +186,15 @@ if __name__ == "__main__":
 ```
 Run `uv run python scripts/db.py migrate` to create local tables quickly.
 
+> 🎉 **Quick win:** Seeing “Database ready” means your SQLModel metadata and Alembic migration are in sync—no more in-memory data loss.
+
 ## Part C – Hands-on Lab 2 (45 Minutes)
+
+### Lab timeline
+- **Minutes 0–10** – Build temporary SQLite fixture and override dependencies.
+- **Minutes 10–25** – Write repository/API tests using the fixture.
+- **Minutes 25–35** – Validate ratings relationship + commit/rollback behavior.
+- **Minutes 35–45** – Practice Alembic downgrade/upgrade cycle and discuss seeding strategies.
 ### 1. Temporary DB fixture (preview)
 Create `tests/conftest.py`:
 ```python
@@ -251,6 +265,8 @@ def test_add_rating_creates_relationship(repository):
 ```
 Run `uv run pytest -q` and call out that autouse fixtures reset the DB per test (Session 07 will formalize fixtures and factories).
 
+> 🎉 **Quick win:** Green pytest output means your migrations + fixtures are stable—capture the command in your README before moving on.
+
 ### 3. Alembic downgrade drill
 ```bash
 uv run alembic downgrade -1
@@ -265,11 +281,27 @@ Add a unique constraint check and raise HTTP 409 in the FastAPI route; note this
 - ✅ SQLModel models, Alembic migrations, FastAPI integration, and test coverage across the DB boundary.
 - Next: integrate metrics/logging (Session 07), add richer queries (`selectinload`), add seeded data via CLI, and explore read/write splitting as a thought experiment.
 - Encourage updating documentation (`docs/contracts/data-model.md`) with ER diagrams and constraints.
+- Point students to [docs/exercises.md](../exercises.md#ex2--frontend-choices) so they can plan the data requirements their UI (EX2) must satisfy.
 
 ## Troubleshooting
 - **`sqlite3.OperationalError: no such table`** → ensure migrations ran (`uv run alembic upgrade head`).
 - **“SQLite objects created in a thread can only be used in that same thread”** → include `connect_args={"check_same_thread": False}` for tests.
 - **Alembic autogenerate misses changes** → verify models are imported in `env.py` and metadata is accurate.
+
+### Common pitfalls
+- **Forgetting to commit sessions** – always call `session.commit()` before returning models, otherwise changes vanish.
+- **Migrations out of sync** – if Alembic complains, regenerate `env.py` imports or delete stray `.pyc` in `migrations/`.
+- **Fixture state collisions** – ensure each test uses fresh `Session(engine)` context to avoid shared connections.
+
+## Student Success Criteria
+
+By the end of Session 05, every student should be able to:
+
+- [ ] Model movies/ratings with SQLModel and run Alembic migrations.
+- [ ] Replace the in-memory repository with SQLite-backed CRUD operations.
+- [ ] Execute pytest suites that rely on temporary SQLite fixtures.
+
+**If a student is missing a checkbox, schedule a persistence clinic before Session 06.**
 
 ## AI Prompt Seeds
 - “Generate SQLModel models for movies and ratings with a relationship and uniqueness on title.”
