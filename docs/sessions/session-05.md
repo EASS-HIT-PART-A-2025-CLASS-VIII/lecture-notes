@@ -17,7 +17,7 @@
 | Architecture mini-lesson | 10 min | Talk | API layer vs. data layer vs. upcoming recommendation logic |
 | AWS module check-in | 5 min | Discussion | Confirm Compute module progress; remind Storage soft deadline (Dec 9) |
 | Lab 1 | 45 min | Guided coding | Build `Movie` + `Rating` tables, seed sample catalog |
-| Break | 10 min | — | |
+| Break | 10 min | — | Launch [10-minute timer](https://e.ggtimer.com/10minutes) and reset |
 | Lab 2 | 45 min | Guided coding | Implement endpoints, rating aggregation, and tests |
 | EX2 announcement | 10 min | Talk | Preview the Movie UI build in next session |
 
@@ -285,6 +285,13 @@ def get_top_movies(limit: int = 5) -> list[MovieRead]:
   curl "http://localhost:8000/movies/top?limit=3"
   ```
 - Stop the server, restart, and check the data still exists.
+
+---
+
+## Break (10 Minutes)
+Launch the shared [10-minute timer](https://e.ggtimer.com/10minutes), stretch, and get set for Part C.
+
+---
 
 ## Part C – Hands-on Lab 2 (45 Minutes)
 ### Test Fixtures (`tests/conftest.py`)

@@ -15,7 +15,7 @@
 | Security overview | 20 min | Talk | Credentials, secrets, HTTPS, principle of least privilege |
 | JWT primer | 15 min | Talk + whiteboard | Token structure (header, payload, signature), expiration |
 | Lab 1 | 45 min | Guided coding | Implement login and token creation |
-| Break | 10 min | — | |
+| Break | 10 min | — | Launch [10-minute timer](https://e.ggtimer.com/10minutes) and reset |
 | Lab 2 | 45 min | Guided coding | Protect endpoints, write tests, load secrets from `.env` |
 | EX3 progress check | 10 min | Discussion | Ensure teams are on track for Jan 20 milestone |
 | AWS reminder | 5 min | Announcement | Confirm AWS certificates were submitted by Dec 16 (or note make-up steps) |
@@ -156,6 +156,13 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()) -> Token:
     access_token = create_access_token({"sub": user.username, "role": user.role})
     return Token(access_token=access_token, token_type="bearer")
 ```
+
+---
+
+## Break (10 Minutes)
+Launch the shared [10-minute timer](https://e.ggtimer.com/10minutes), take a short walk, and come back ready for Part C.
+
+---
 
 ## Part C – Hands-on Lab 2 (45 Minutes)
 ### Protected Routes

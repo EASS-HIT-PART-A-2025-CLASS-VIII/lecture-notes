@@ -16,7 +16,7 @@
 | Frontend overview | 20 min | Talk + whiteboard | Explain client/server, CORS, form submission |
 | Tool comparison | 15 min | Talk | Streamlit vs. React vs. static HTML |
 | Lab 1 | 45 min | Guided coding | Build Streamlit movie UI |
-| Break | 10 min | — | |
+| Break | 10 min | — | Launch [10-minute timer](https://e.ggtimer.com/10minutes) and recharge |
 | Lab 2 | 45 min | Guided coding | React movie dashboard + CORS middleware |
 | EX2 planning circle | 10 min | Group discussion | Teams choose tech stack and next steps |
 
@@ -156,6 +156,13 @@ In a second terminal:
 uv run streamlit run ui/app.py
 ```
 Visit `http://localhost:8501` and confirm the catalogue appears. Add a rating and refresh the table.
+
+---
+
+## Break (10 Minutes)
+Launch the shared [10-minute timer](https://e.ggtimer.com/10minutes), move around, and return ready for Part C.
+
+---
 
 ## Part C – Hands-on Lab 2 (45 Minutes) – React Movie Dashboard
 ### Create a React Starter (Optional Teams)

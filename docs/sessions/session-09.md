@@ -15,7 +15,7 @@
 | Async fundamentals | 20 min | Talk + diagrams | Blocking vs. non-blocking, event loop basics |
 | Reliability vocabulary | 15 min | Talk | Retries, backoff, idempotency, graceful shutdown |
 | Lab 1 | 45 min | Guided coding | Background task to rebuild movie recommendations |
-| Break | 10 min | — | |
+| Break | 10 min | — | Launch [10-minute timer](https://e.ggtimer.com/10minutes) and reset |
 | Lab 2 | 45 min | Guided coding | Add retries, Redis-ready hooks, and graceful shutdown |
 | EX3 preview | 10 min | Talk | Describe advanced feature options |
 
@@ -137,6 +137,13 @@ async def rebuild_status(task_id: str) -> dict[str, str | list[int]]:
    ```bash
    curl http://localhost:8000/recommendations/7?limit=3
    ```
+
+---
+
+## Break (10 Minutes)
+Launch the shared [10-minute timer](https://e.ggtimer.com/10minutes), clear your head, and come back ready for Part C.
+
+---
 
 ## Part C – Hands-on Lab 2 (45 Minutes) – Reliability Patterns
 ### Client-Side Retry Helper (`app/retry_client.py`)

@@ -16,7 +16,7 @@
 | Service contracts | 15 min | Talk | HTTP contracts, cache responsibilities, health checks |
 | AWS module check | 5 min | Announcement | Confirm AWS Academy certificates were submitted by Dec 16 and note any make-up steps |
 | Lab 1 | 45 min | Guided coding | Compose file + Redis cache + nginx proxy |
-| Break | 10 min | — | |
+| Break | 10 min | — | Launch [10-minute timer](https://e.ggtimer.com/10minutes) and reset |
 | Lab 2 | 45 min | Guided coding | Structured logging/metrics + documentation |
 | EX3 assignment briefing | 10 min | Talk | Requirements, milestones, grading |
 
@@ -130,6 +130,14 @@ curl http://localhost:8080/recommendations/7?limit=3
 
 ### Clean Up
 `Ctrl+C` to stop, then `docker compose down`
+
+---
+
+## Break (10 Minutes)
+Launch the shared [10-minute timer](https://e.ggtimer.com/10minutes), stretch, and get ready for Part C.
+
+---
+
 ## Part C – Hands-on Lab 2 (45 Minutes)
 ### Add Structured Logs
 Update `app/main.py` logging middleware to output JSON-style lines:

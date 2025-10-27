@@ -15,7 +15,7 @@
 | AI usage policy | 15 min | Talk | Expectations, attribution, academic integrity |
 | Prompt patterns | 20 min | Talk + live examples | Spec-first, tests-first, refactor requests |
 | Lab 1 | 45 min | Guided coding | Use AI to extend the API, then review and test |
-| Break | 10 min | — | |
+| Break | 10 min | — | Launch [10-minute timer](https://e.ggtimer.com/10minutes) and recharge |
 | Lab 2 | 45 min | Guided coding | Call a local LLM (LM Studio or vLLM) from Python |
 | Retrospective | 10 min | Discussion | Share wins, blockers, and next steps |
 
@@ -81,6 +81,12 @@ uv run pytest -q
 ```
 Address any numerical edge cases before moving on.
 
+---
+
+## Break (10 Minutes)
+Launch the shared [10-minute timer](https://e.ggtimer.com/10minutes), take a breather, and gear up for Part C.
+
+---
 
 ## Part C – Hands-on Lab 2 (45 Minutes) – Local LLM Call
 You can use either LM Studio or vLLM (Docker) on macOS. LM Studio is the fastest path on Apple Silicon; vLLM via Docker also works on CPU for tiny models.

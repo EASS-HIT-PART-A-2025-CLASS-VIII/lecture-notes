@@ -15,7 +15,7 @@
 | HTTP fundamentals | 25 min | Talk with illustrations | URLs, methods, status codes, headers, JSON payloads |
 | REST design principles | 20 min | Talk + whiteboard | Resources vs. actions, idempotency, predictable endpoints |
 | Lab 1 | 45 min | Guided coding | Build a tiny HTTP client with `httpx` |
-| Break | 10 min | — | Encourage stretching |
+| Break | 10 min | — | Encourage stretching – launch [10-minute timer](https://e.ggtimer.com/10minutes) |
 | Lab 2 | 45 min | Guided practice | Explore requests with `.http` files and retry helpers |
 | EX1 briefing | 10 min | Talk + Q&A | Share scope, rubric, Tuesday deadline |
 
@@ -104,6 +104,13 @@ if __name__ == "__main__":
 - Confirm the console prints `Server echoed our args: {'ping': 'pong'}`.
 - Change the parameter to `{"ping": "class"}` and rerun.
 - If validation fails, check the error message and adjust.
+
+---
+
+## Break (10 Minutes)
+Launch the shared [10-minute timer](https://e.ggtimer.com/10minutes), stand up, and reset before Part C.
+
+---
 
 ## Part C – Hands-on Lab 2 (45 Minutes)
 ### REST Client Practice

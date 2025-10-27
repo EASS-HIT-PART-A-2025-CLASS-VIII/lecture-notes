@@ -15,7 +15,7 @@
 | Testing review | 20 min | Talk | Unit vs. integration tests, parametrization, fixtures |
 | Logging primer | 15 min | Talk | Log levels, structured messages, why metadata matters |
 | Lab 1 | 45 min | Guided coding | Expand pytest coverage using parametrization |
-| Break | 10 min | — | |
+| Break | 10 min | — | Launch [10-minute timer](https://e.ggtimer.com/10minutes) and reset |
 | Lab 2 | 45 min | Guided coding | Add request logging middleware and timing |
 | EX2 work sprint | 10 min | Lab | Dedicated help time; remind deadline |
 
@@ -103,6 +103,13 @@ def test_rating_updates_top_movies():
 uv run pytest -q
 ```
 Encourage students to watch for failing assertions and tie them back to missing edge cases.
+
+---
+
+## Break (10 Minutes)
+Launch the shared [10-minute timer](https://e.ggtimer.com/10minutes), grab water, and head back for Part C.
+
+---
 
 ## Part C – Hands-on Lab 2 (45 Minutes) – Logging and Profiling
 ### Configure Logging

@@ -15,7 +15,7 @@
 | FastAPI walkthrough | 20 min | Talk + live coding | Anatomy of a FastAPI app |
 | Testing mindset | 15 min | Talk + discussion | Benefits of tests, how they guide development |
 | Lab 1 | 45 min | Guided coding | Build in-memory `/movies` API |
-| Break | 10 min | — | |
+| Break | 10 min | — | Launch [10-minute timer](https://e.ggtimer.com/10minutes) and stretch |
 | Lab 2 | 45 min | Guided coding | Create tests and run them |
 | Q&A on EX1 | 10 min | Discussion | Clarify assignment questions |
 
@@ -108,6 +108,13 @@ curl -X POST http://localhost:8000/movies   -H "Content-Type: application/json" 
 
 curl http://localhost:8000/movies
 ```
+
+---
+
+## Break (10 Minutes)
+Launch the shared [10-minute timer](https://e.ggtimer.com/10minutes), hydrate, and be ready for Part C.
+
+---
 
 ## Part C – Hands-on Lab 2 (45 Minutes)
 ### Create the Test Suite

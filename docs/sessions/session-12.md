@@ -15,7 +15,7 @@
 | Tool-friendly API talk | 25 min | Talk + examples | Deterministic responses, idempotency, explicit error codes |
 | Prompt-to-tool demo | 20 min | Live coding | Call an API endpoint from LM Studio or vLLM (Docker) |
 | Lab 1 | 45 min | Guided coding | Create `/tool/recommend-movie` with clear schema |
-| Break | 10 min | — | |
+| Break | 10 min | — | Launch [10-minute timer](https://e.ggtimer.com/10minutes) and reset |
 | Lab 2 | 45 min | Guided practice | Run readiness checklist, update docs, rehearse demos |
 | Closing circle | 10 min | Discussion | Share biggest lessons from the course |
 
@@ -149,6 +149,13 @@ uv run python scripts/ask_tool.py
 Adjust the LM Studio URL/model as needed.
 
 Optional vLLM note: If you started vLLM via Docker in Session 08, point the client to `http://localhost:8000/v1` and set `model` to the tiny model you launched (for example, `TinyLlama/TinyLlama-1.1B-Chat-v1.0`). The OpenAI Python client also works by supplying `base_url` and a dummy `api_key`.
+
+---
+
+## Break (10 Minutes)
+Launch the shared [10-minute timer](https://e.ggtimer.com/10minutes), celebrate progress, and return ready for Part C.
+
+---
 
 ## Part C – Hands-on Lab 2 (45 Minutes)
 ### Readiness Checklist

@@ -15,7 +15,7 @@
 | Docker concepts | 20 min | Talk + sketches | Layers, images, containers, ports |
 | Reverse proxy concept | 15 min | Talk | How `nginx` forwards requests |
 | Lab 1 | 45 min | Guided coding | Build and run the Docker image |
-| Break | 10 min | — | |
+| Break | 10 min | — | Launch [10-minute timer](https://e.ggtimer.com/10minutes) and reset |
 | Lab 2 | 45 min | Guided coding | Wire `nginx` to the app |
 | EX1 help clinic | 10 min | Q&A | Answer remaining assignment questions |
 
@@ -68,6 +68,13 @@ Stop the container with `Ctrl+C` when finished.
 ### Discussion Points
 - Show `docker image ls` to confirm the image exists.
 - Explain the benefit: any teammate can run `docker run movies-api` and get the same behavior.
+
+---
+
+## Break (10 Minutes)
+Launch the shared [10-minute timer](https://e.ggtimer.com/10minutes), stretch, and prepare for Part C.
+
+---
 
 ## Part C – Hands-on Lab 2 (45 Minutes)
 ### Start nginx
