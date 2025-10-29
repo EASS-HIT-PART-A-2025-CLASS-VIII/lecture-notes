@@ -27,6 +27,8 @@ Key documents:
   - **EX1** (due Tue 2 Dec 2025, 23:59 Israel time): ship the FastAPI movie backend with tests and Docker.
   - **EX2** (due Tue 23 Dec 2025, 23:59 Israel time): deliver a Streamlit or React movie dashboard.
   - **EX3** (assigned Mon 5 Jan 2026, final due Tue 10 Feb 2026, 23:59 Israel time): compose the full stack (API + Redis + nginx) with an advanced feature (async rebuild, auth, or observability).
+  - EX3 submission must include a short (≤3 min) demo movie that walks graders through the live Azure deployment.
+- Students stay in a single monorepo for EX1–EX3 and deploy only the EX3 Docker Compose stack to a single Azure for Students compute instance—claim the \$100 credit, monitor usage, and avoid any personal spend.
 - AWS Academy Cloud Foundations modules (Compute, Storage, Databases) must all be submitted by **Tue 16 Dec 2025, 23:59 Israel time** (soft pacing: Compute by Nov 25, Storage by Dec 9).
 
 ## 🗂️ Legacy Materials

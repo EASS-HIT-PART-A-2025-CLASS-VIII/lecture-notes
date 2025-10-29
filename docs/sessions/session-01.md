@@ -24,7 +24,7 @@ Ask students to complete this 5-minute checklist the night before:
 | --- | --- | --- | --- |
 | **PART A – Theory & Motivation** | **45 min** | **Talk + Discussion** | **Course overview, tools landscape, mindset** |
 | Warm welcome | 5 min | Discussion | Zoom breakouts: one-sentence intros + goals |
-| Course overview | 15 min | Talk | Syllabus, grading (3 exercises), expectations for collaboration and AI usage |
+| Course overview | 15 min | Talk | Syllabus, grading (3 exercises), single monorepo + EX3 Azure deployment (Azure for Students), expectations for collaboration and AI usage |
 | Tool belt briefing | 25 min | Talk + quick demos | Why uv, how Git will be used, VS Code essentials, FastAPI for backends, Docker for deployment, LLMs as coding assistants and in projects |
 | **Break** | **10 min** | **—** | **Encourage movement – launch [10-minute timer](https://e.ggtimer.com/10minutes)** |
 | **PART B – Hands-on Lab 1** | **45 min** | **Guided coding** | **Scaffold the starter project, run first test** |
@@ -147,10 +147,11 @@ Use these numbered steps when you call out B# (Part B) or C# (Part C). Unless ot
 1. **Introduce yourself and the course tone.** "This class is about learning by doing. You will see me live-code and you will copy/paste freely. Questions are always welcome. Trust the process—even if things feel unfamiliar at first, by the end you'll be building real web applications with modern tools."
 2. **Set expectations for participation.** "We use Discord for day-to-day help. Post what you tried before asking. Pair up during labs so nobody gets stuck. Join using the LMS link (backup: https://go.eass.dev/discord) and use the `#helpdesk` channel for all technical questions."
 3. **Explain grading.** “We have three large exercises. Each one is assigned on a Monday and due on a Tuesday three weeks later. There are no surprise quizzes. Show up, code along, and you will earn the grade.”
-4. **Clarify AI policy.** "You may use AI tools like ChatGPT, Claude, Gemini, Cursor, Copilot, LM Studio, or Ollama. You must understand every line you submit, keep a lightweight spec (spec.md or a tessl.io export) in your repo, and when you ask for help share Problem → Action → Result → Desired."
-5. **Outline the tool belt.** "Today we confirm Python 3.11+, uv for environments, Git for version control, VS Code for editing, and Docker Desktop for later sessions. Soon we'll add FastAPI for building web APIs and learn to use LLMs both as coding assistants (to help you write code faster) and as components inside your applications (like calling a local LLM endpoint)."
-6. **Preview AWS Academy requirement.** "You also complete three AWS Academy Cloud Foundations modules—Compute, Storage, and Databases. All three modules are due **Tuesday, Dec 16, 2025**. This gives you plenty of time, but don't wait until the last minute. Start early and pace yourself."
-7. **Transition to Part B.** "Let's make sure every laptop can create a project. Follow along exactly; copy/paste saves time."
+4. **Call out the monorepo + cloud deployment plan.** "You’ll keep all three exercises in the same Git repo so EX2 builds on EX1 and EX3 ships the whole stack. Only EX3 goes online: claim your [Azure for Students](https://azure.microsoft.com/en-us/free/students) account tonight so you have the \$100 credit (no card). Deploy the final Docker Compose stack to a single Azure compute instance and watch your balance so nothing bills past the grant."
+5. **Clarify AI policy.** "You may use AI tools like ChatGPT, Claude, Gemini, Cursor, Copilot, LM Studio, or Ollama. You must understand every line you submit, keep a lightweight spec (spec.md or a tessl.io export) in your repo, and when you ask for help share Problem → Action → Result → Desired."
+6. **Outline the tool belt.** "Today we confirm Python 3.11+, uv for environments, Git for version control, VS Code for editing, and Docker Desktop for later sessions. Soon we'll add FastAPI for building web APIs and learn to use LLMs both as coding assistants (to help you write code faster) and as components inside your applications (like calling a local LLM endpoint)."
+7. **Preview AWS Academy requirement.** "You also complete three AWS Academy Cloud Foundations modules—Compute, Storage, and Databases. All three modules are due **Tuesday, Dec 16, 2025**. This gives you plenty of time, but don't wait until the last minute. Start early and pace yourself."
+8. **Transition to Part B.** "Let's make sure every laptop can create a project. Follow along exactly; copy/paste saves time."
 
 ---
 

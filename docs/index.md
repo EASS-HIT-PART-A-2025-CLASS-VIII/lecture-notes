@@ -45,6 +45,8 @@ Welcome! This site hosts the 12-week plan for the EASS (Engineering of Advanced 
 - **EX2 – Frontend Choices (Streamlit or React)**: assigned Mon Dec 1 · due Tue Dec 23, 2025
 - **EX3 – Advanced Backend + Compose**: assigned Mon Jan 5 · milestone Tue Jan 20, 2026 · final Tue Feb 10, 2026
 - **AWS Academy Cloud Foundations** modules (Compute, Storage, Databases): all certificates due Tue Dec 16, 2025 (recommended pacing: Compute by Nov 25, Storage by Dec 9)
+- **EX3 demo movie**: ship a short (≤3 min) video that shows graders the live Azure deployment end-to-end.
+- **Single repo + EX3 deployment:** Students work in one monorepo for all exercises and deploy only the EX3 Docker Compose stack (backend, frontend, supporting services) to a single [Azure for Students](https://azure.microsoft.com/en-us/free/students) compute instance—budget the \$100 credit so nothing is billed.
 
 ## Teaching Philosophy
 - Keep examples tiny and copy/paste friendly.
